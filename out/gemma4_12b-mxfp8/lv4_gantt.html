@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Gantt Chart</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-color: #333;
+            --bar-color: #007bff;
+            --bar-hover: #0056b3;
+            --grid-color: #e9ecef;
+            --header-bg: #e9ecef;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .gantt-container {
+            background: white;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 20px;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        .gantt-table {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            position: relative;
+        }
+
+        /* Header styling */
+        .header-row {
+            display: contents;
+        }
+
+        .header-label {
+            padding: 10px;
+            border-bottom: 2px solid var(--border-color);
+            font-weight: bold;
+            background: var(--header-bg);
+        }
+
+        .date-headers {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            background: var(--header-bg);
+        }
+
+        .date-cell {
+            flex: 1;
+            min-width: 40px;
+            text-align: center;
+            font-size: 12px;
+            padding: 8px 0;
+            border-right: 1px solid var(--grid-color);
+        }
+
+        /* Task rows */
+        .task-row {
+            display: contents;
+        }
+
+        .task-name {
+            padding: 15px 10px;
+            border-bottom: 1px solid var(--grid-color);
+            background: white;
+            font-weight: 500;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+        }
+
+        .timeline-area {
+            position: relative;
+            border-bottom: 1px solid var(--grid-color);
+            height: 50px; /* Fixed height for rows */
+            background-image: linear-gradient(to right, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 100%; /* Matches dayWidth */
+        }
+
+        /* Bar styling */
+        .bar {
+            position: absolute;
+            height: 30px;
+            background-color: var(--bar-color);
+            border-radius: 4px;
+            cursor: move;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            user-select: none;
+            z-index: 3;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .bar:hover {
+            background-color: var(--bar-hover);
+        }
+
+        /* Resize handles */
+        .handle {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 30px;
+            background-color: rgba(255,255,255,0.3);
+            border: 1px solid rgba(255,255,255,0.5);
+            cursor: ew-resize;
+            z-index: 4;
+        }
+
+        .handle-left { left: -5px; border-radius: 3px 0 0 3px; }
+        .handle-right { right: -5px; border-radius: 0 3px 3px 0; }
+
+        /* SVG Overlay for dependency lines */
+        #dependency-svg {
+            position: absolute;
+            top: 0;
+            left: 150px; /* Offset by task name column width */
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .dependency-line {
+            stroke: #666;
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+    </style>
+</head>
+<body>
+
+<div class="gantt-container">
+    <div class="gantt-table" id="gantt-table">
+        <!-- Header -->
+        <div class="header-row">
+            <div class="header-label">タスク名</div>
+            <div class="date-headers" id="date-headers"></div>
+        </div>
+
+        <!-- Task Rows will be injected here -->
+        <div id="task-rows-container"></div>
+
+        <!-- SVG Overlay for lines -->
+        <svg id="dependency-svg"></svg>
+    </div>
+</div>
+
+<script>
+    const START_DATE = new Date('2026-06-01T00:00:00');
+    const END_DATE = new Date('2026-06-21T23:59:59');
+    const DAY_WIDTH = 40; // px per day
+    const ROW_HEIGHT = 50;
+
+    let tasks = [
+        { id: 'T1', name: '要件定義', start: '2026-06-01', end: '2026-06-04', deps: [] },
+        { id: 'T2', name: '基本設計', start: '2026-06-05', end: '2026-06-09', deps: ['T1'] },
+        { id: 'T3', name: 'UI設計', start: '2026-06-05', end: '2026-06-08', deps: ['T1'] },
+        { id: 'T4', name: '実装', start: '2026-06-10', end: '2026-06-17', deps: ['T2', 'T3'] },
+        { id: 'T5', name: 'テスト', start: '2026-06-16', end: '2026-06-20', deps: ['T4'] },
+        { id: 'T6', name: 'リリース準備', start: '2026-06-19', end: '2026-06-21', deps: ['T5'] }
+    ];
+
+    const container = document.getElementById('task-rows-container');
+    const dateHeaders = document.getElementById('date-headers');
+    const svgOverlay = document.getElementById('dependency-svg');
+
+    // Create SVG markers for arrows
+    const svgContent = `
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+            </marker>
+        </defs>
+    `;
+    svgOverlay.innerHTML = svgContent;
+
+    function init() {
+        // Render Date Headers
+        for (let i = 0; i <= 21; i++) {
+            const d = new Date(START_DATE);
+            d.setDate(d.getDate() + i);
+            const cell = document.createElement('div');
+            cell.className = 'date-cell';
+            cell.innerText = `${d.getMonth() + 1}/${d.getDate()}`;
+            dateHeaders.appendChild(cell);
+        }
+
+        // Render Task Rows
+        tasks.forEach((task, index) => {
+            const row = document.createElement('div');
+            row.className = 'task-row';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'task-name';
+            nameDiv.innerText = task.name;
+            
+            const timelineDiv = document.createElement('div');
+            timelineDiv.className = 'timeline-area';
+            timelineDiv.style.height = `${ROW_HEIGHT}px`;
+
+            row.appendChild(nameDiv);
+            row.appendChild(timelineDiv);
+            container.appendChild(row);
+
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.id = `bar-${task.id}`;
+            bar.dataset.taskId = task.id;
+            
+            // Add handles
+            const leftHandle = document.createElement('div');
+            leftHandle.className = 'handle handle-left';
+            leftHandle.dataset.type = 'left';
+            
+            const rightHandle = document.createElement('div');
+            rightHandle.className = 'handle handle-right';
+            rightHandle.dataset.type = 'right';
+
+            bar.appendChild(leftHandle);
+            bar.appendChild(rightHandle);
+            timelineDiv.appendChild(bar);
+        });
+
+        updatePositions();
+    }
+
+    function getDateIndex(dateStr) {
+        const date = new Date(dateStr);
+        return (date - START_DATE) / (1000 * 60 * 60 * 24);
+    }
+
+    function updatePositions() {
+        tasks.forEach((task, index) => {
+            const bar = document.getElementById(`bar-${task.id}`);
+            if (!bar) return;
+
+            const startIdx = getDateIndex(task.start);
+            const endIdx = getDateIndex(task.end);
+            
+            const left = startIdx * DAY_WIDTH;
+            const width = (endIdx - startIdx) * DAY_WIDTH;
+
+            bar.style.left = `${left}px`;
+            bar.style.width = `${width}px`;
+            
+            // Update text content (duration)
+            const duration = Math.round(endIdx - startIdx);
+            bar.innerText = duration > 0 ? `${duration}日` : '';
+
+            // Position handles
+            bar.querySelector('.handle-left').style.left = `0px`;
+            bar.querySelector('.handle-right').style.left = `${width - 10}px`;
+        });
+
+        drawDependencies();
+    }
+
+    function drawDependencies() {
+        svgOverlay.innerHTML = svgContent; // Clear previous lines
+        tasks.forEach(task => {
+            task.deps.forEach(depId => {
+                const sourceTask = tasks.find(t => t.id === depId);
+                if (!sourceTask) return;
+
+                const sourceBar = document.getElementById(`bar-${sourceTask.id}`);
+                const targetBar = document.getElementById(`bar-${task.id}`);
+                
+                const sourceIdx = getDateIndex(sourceTask.end);
+                const targetIdx = getDateIndex(task.start);
+
+                // Calculate coordinates
+                // Note: The SVG is offset by 150px (the task name column)
+                const sX = (sourceIdx * DAY_WIDTH) + ((sourceBar.offsetWidth - 10) / 2); // End of source bar center-ish
+                const sY = (tasks.indexOf(sourceTask) * ROW_HEIGHT) + (ROW_HEIGHT / 2);
+
+                // We want the line to start at the end of the source bar
+                const x1 = (sourceIdx * DAY_WIDTH) + (sourceBar.offsetWidth - 5);
+                const y1 = (tasks.indexOf(sourceTask) * ROW_HEIGHT) + (ROW_HEIGHT / 2);
+
+                // We want the line to end at the start of the target bar
+                const x2 = (targetIdx * DAY_WIDTH);
+                const y2 = (tasks.indexOf(task) * ROW_HEIGHT) + (ROW_HEIGHT / 2);
+
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                // Simple straight line for now, but could be a curve
+                const pathData = `M ${x1} ${y1} L ${x2} ${y2}`;
+                line.setAttribute("d", pathData);
+                line.setAttribute("class", "dependency-line");
+                svgOverlay.appendChild(line);
+            });
+        });
+    }
+
+    // Interaction Logic
+    let activeElement = null;
+    let activeType = null; // 'move' or 'left' or 'right'
+    let initialX = 0;
+    let initialStartIdx = 0;
+    let initialEndIdx = 0;
+
+    document.addEventListener('mousedown', (e) => {
+        const target = e.target;
+        if (target.classList.contains('bar')) {
+            activeElement = target;
+            activeType = 'move';
+            const taskId = target.dataset.taskId;
+            const task = tasks.find(t => t.id === taskId);
+            initialStartIdx = getDateIndex(task.start);
+            initialEndIdx = getDateIndex(task.end);
+            initialX = e.clientX;
+        } else if (target.classList.contains('handle')) {
+            activeElement = target.closest('.bar');
+            activeType = target.dataset.type; // 'left' or 'right'
+            const taskId = activeElement.dataset.taskId;
+            const task = tasks.find(t => t.id === taskId);
+            initialStartIdx = getDateIndex(task.start);
+            initialEndIdx = getDateIndex(task.end);
+            initialX = e.clientX;
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!activeElement || activeType === null) return;
+
+        const deltaX = e.clientX - initialX;
+        const deltaDays = deltaX / DAY_WIDTH;
+
+        const taskId = activeElement.dataset.taskId;
+        const task = tasks.find(t => t.id === taskId);
+
+        if (activeType === 'move') {
+            const newStartIdx = initialStartIdx + deltaDays;
+            const newEndIdx = initialEndIdx + deltaDays;
+            
+            // Clamp to range 0-21
+            const clampedStart = Math.max(0, Math.min(21, newStartIdx));
+            const clampedEnd = Math.max(clampedStart, Math.min(21, newEndIdx));
+
+            task.start = get_date_from_idx(clampedStart);
+            task.end = get_date_from_idx(clampedEnd);
+        } else if (activeType === 'left') {
+            const newStartIdx = initialStartIdx + deltaDays;
+            const clampedStart = Math.max(0, Math.min(initialEndIdx - 1, newStartIdx));
+            task.start = get_date_from_idx(clampedStart);
+        } else if (activeType === 'right') {
+            const newEndIdx = initialEndIdx + deltaDays;
+            const clampedEnd = Math.max(initialStartIdx + 1, Math.min(21, newEndIdx));
+            task.end = get_date_from_idx(clampedEnd);
+        }
+
+        updatePositions();
+    });
+
+    document.addEventListener('mouseup', () => {
+        activeElement = null;
+        activeType = null;
+    });
+
+    function get_date_from_idx(idx) {
+        const d = new Date(START_DATE);
+        d.setDate(d.getDate() + Math.round(idx));
+        return d.toISOString().split('T')[0];
+    }
+
+    init();
+</script>
+
+</body>
+</html>

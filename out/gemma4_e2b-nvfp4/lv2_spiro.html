@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Hypotrochoid Spirograph</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; }
+        canvas { display: block; width: 900px; height: 600px; border: 1px solid black; }
+        #ui-overlay {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px;
+            font-family: monospace;
+            z-index: 10;
+        }
+        #ui-overlay button {
+            margin-top: 5px;
+cursor: pointer;
+}
+#ui-overlay label {
+    display: block;
+    margin-bottom: 5px;
+}
+#ui-overlay input[type="range"] {
+    width: 100%;
+}
+</style>
+</head>
+<body>
+
+<canvas id="drawingCanvas" width="900" height="600"></canvas>
+
+<div id="ui-overlay">
+    <label for="patternSelector">模様選択:</label>
+    <select id="patternSelector">
+        <option value="1">模様1 (r=55, d=80)</option>
+        <option value="2">模様2 (r=44, d=110)</option>
+        <option value="3">模様3 (r=88, d=50)</option>
+    </select>
+    <button id="resetButton">描画開始</button>
+</div>
+
+<script>
+    const canvas = document.getElementById('drawingCanvas');
+    const ctx = canvas.getContext('2d');
+    const uiOverlay = document.getElementById('ui-overlay');
+    const patternSelector = document.getElementById('patternSelector');
+    const resetButton = document.getElementById('resetButton');
+
+    // --- Constants ---
+    const CANVAS_WIDTH = 900;
+    const CANVAS_HEIGHT = 600;
+    const BACKGROUND_COLOR = '#111';
+    const LINE_WIDTH = 2;
+
+    // Fixed parameters for Hypocycloid
+    const R = 220; // Fixed radius of the outer circle
+    let currentPatternIndex = 1;
+
+    // Drawing state variables
+    let drawingProgress = 0; // Tracks how far along the curve we are (0 to 1)
+let isDrawing = false;
+let pathPoints = []; // Stores the calculated points for the current path
+let totalSteps = 0; // Total number of segments to draw
+
+// --- Pattern Definitions ---
+const patterns = {
+    1: { r: 55, d: 80 },
+    2: { r: 44, d: 110 },
+    3: { r: 88, d: 50 }
+};
+
+let currentParams;
+
+// --- Drawing Logic ---
+
+function calculateHypotrochoid(r, d) {
+    const points = [];
+    const numSteps = 600; // Number of segments for drawing
+    const stepAngle = (2 * Math.PI) / numSteps;
+
+    let t = 0; // Parametric variable t
+    let startX, startY;
+
+    // Calculate starting point (t=0)
+    // Standard Hypocycloid equations:
+    // x = (R - r) * cos(t) + r * cos((R/r - 1) * t)
+    // y = (R - r) * sin(t) - r * sin((R/r - 1) * t)
+
+    startX = (R - r) * Math.cos(t) + r * Math.cos((R / r - 1) * t);
+    startY = (R - r) * Math.sin(t) - r * Math.sin((R / r - 1) * t);
+
+    points.push({ x: startX, y: startY });
+
+    // Draw the curve gradually
+    for (let i = 1; i < numSteps; i++) {
+        t += stepAngle;
+        const x = (R - r) * Math.cos(t) + r * Math.cos((R / r - 1) * t);
+        const y = (R - r) * Math.sin(t) - r * Math.sin((R / r - 1) * t);
+        points.push({ x: x, y: y });
+    }
+
+    return { points, start: { x: startX, y: startY } };
+}
+
+
+function drawLoop() {
+    // 1. Clear Canvas
+    ctx.fillStyle = BACKGROUND_COLOR;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // 2. Determine current parameters
+    const r = patterns[currentPatternIndex].r;
+    const d = patterns[currentPatternIndex].d;
+    currentParams = { r, d };
+
+    // 3. Calculate path if not yet calculated or reset
+    if (!pathPoints || pathPoints.length === 0) {
+        const result = calculateHypotrochoid(r, d);
+        pathPoints = result.points;
+        totalSteps = pathPoints.length;
+        isDrawing = true;
+        drawingProgress = 0;
+    }
+
+    // 4. Draw the current segment
+    if (isDrawing && drawingProgress < totalSteps) {
+        const step = pathPoints[drawingProgress];
+        ctx.beginPath();
+        ctx.moveTo(step.x, step.y);
+        ctx.lineTo(step.x, step.y);
+        ctx.lineWidth = LINE_WIDTH;
+        ctx.strokeStyle = 'white'; // Line color (default white for visibility)
+        ctx.stroke();
+
+        // Update progress
+        drawingProgress++;
+    } else if (isDrawing && drawingProgress >= totalSteps) {
+        // Drawing complete
+        isDrawing = false;
+        console.log("Drawing finished.");
+    }
+
+
+    // 5. Loop the animation
+    requestAnimationFrame(drawLoop);
+}
+
+// --- UI Handlers ---
+
+function resetDrawing() {
+    // Reset state and start a new drawing
+    pathPoints = [];
+    totalSteps = 0;
+    isDrawing = false;
+    drawingProgress = 0;
+    console.log("Drawing reset.");
+    requestAnimationFrame(drawLoop);
+}
+
+function switchPattern(event) {
+    currentPatternIndex = parseInt(event.target.value);
+    resetDrawing(); // Restart drawing with the new pattern
+}
+
+// --- Initialization ---
+
+// Event listeners
+patternSelector.addEventListener('change', switchPattern);
+resetButton.addEventListener('click', resetDrawing);
+
+
+// Start the animation loop
+requestAnimationFrame(drawLoop);
+
+</script>
+
+</body>
+</html>

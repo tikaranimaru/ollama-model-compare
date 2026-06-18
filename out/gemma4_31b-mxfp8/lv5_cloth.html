@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Cloth Simulation - Verlet Integration</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+        canvas {
+            background-color: #111;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #ui-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(40, 40, 40, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            user-select: none;
+            transition: opacity 0.3s;
+        }
+        #ui-panel.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        input[type="range"] {
+            width: 150px;
+            cursor: pointer;
+        }
+        #toggle-ui {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: -1; /* Behind the panel */
+            padding: 5px 10px;
+            cursor: pointer;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<button id="toggle-ui">UI Toggle</button>
+<div id="ui-panel">
+    <div class="control-group">
+        <label for="wind-slider">Wind Strength</label>
+        <input type="range" id="wind-slider" min="-1" max="1" step="0.01" value="0">
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const windSlider = document.getElementById('wind-slider');
+    const uiPanel = document.getElementById('ui-panel');
+    const toggleBtn = document.getElementById('toggle-ui');
+
+    toggleBtn.onclick = () => uiPanel.classList.toggle('hidden');
+
+    // Simulation Parameters
+    const cols = 30;
+    const rows = 20;
+    const spacing = 20;
+    const gravity = 0.25;
+    const iterations = 5;
+    let windStrength = 0;
+
+    const points = [];
+    const constraints = [];
+
+    class Point {
+        constructor(x, y, pinned = false) {
+            this.x = x;
+            this.y = y;
+            this.oldX = x;
+            this.oldY = y;
+            this.pinned = pinned;
+        }
+
+        update(dt, wind) {
+            if (this.pinned) return;
+
+            const vx = this.x - this.oldX;
+            const vy = this.y - this.oldY;
+
+            this.oldX = this.x;
+            this.oldY = this.y;
+
+            // Verlet Integration: pos = pos + velocity + accel * dt^2
+            // We use a simplified version where dt=1 for stability in simple sims
+            this.x += vx + wind; 
+            this.y += vy + gravity;
+        }
+    }
+
+    class Constraint {
+        constructor(p1, p2) {
+            this.p1 = p1;
+            this.p2 = p2;
+            this.length = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        }
+
+        resolve() {
+            const dx = this.p2.x - this.p1.x;
+            const dy = this.p2.y - this.p1.y;
+            const distance = Math.hypot(dx, dy);
+            const difference = (this.length - distance) / distance;
+            const offsetX = dx * difference * 0.5;
+            const offsetY = dy * difference * 0.5;
+
+            if (!this.p1.pinned) {
+                this.p1.x -= offsetX;
+                this.p1.y -= offsetY;
+            }
+            if (!this.p2.pinned) {
+                this.p2.x += offsetX;
+                this.p2.y += offsetY;
+            }
+        }
+    }
+
+    // Initialize Grid
+    const startX = (canvas.width - (cols - 1) * spacing) / 2;
+    const startY = 50;
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const pinned = (r === 0); // Top row fixed
+            points.push(new Point(startX + c * spacing, startY + r * spacing, pinned));
+        }
+    }
+
+    // Create Constraints
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const p1 = points[r * cols + c];
+            // Horizontal constraint
+            if (c < cols - 1) {
+                constraints.push(new Constraint(p1, points[r * cols + (c + 1)]));
+            }
+            // Vertical constraint
+            if (r < rows - 1) {
+                constraints.push(new Constraint(p1, points[(r + 1) * cols + c]));
+            }
+        }
+    }
+
+    // Interaction
+    let draggedPoint = null;
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        let minDist = 20;
+        points.forEach(p => {
+            const d = Math.hypot(p.x - mx, p.y - my);
+            if (d < minDist) {
+                minDist = d;
+                draggedPoint = p;
+            }
+        });
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!draggedPoint) return;
+        const rect = canvas.getBoundingClientRect();
+        draggedPoint.x = e.clientX - rect.left;
+        draggedPoint.y = e.clientY - rect.top;
+        draggedPoint.oldX = draggedPoint.x;
+        draggedPoint.oldY = draggedPoint.y;
+    });
+
+    window.addEventListener('mouseup', () => {
+        draggedPoint = null;
+    });
+
+    function loop() {
+        windStrength = parseFloat(windSlider.value);
+        // Add a bit of oscillation to wind for natural feel
+        const currentWind = windStrength + Math.sin(Date.now() * 0.002) * 0.05;
+
+        // Update positions
+        points.forEach(p => p.update(1, currentWind));
+
+        // Resolve constraints multiple times per frame for stability
+        for (let i = 0; i < iterations; i++) {
+            constraints.forEach(c => c.resolve());
+        }
+
+        // Render
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        constraints.forEach(c => {
+            ctx.moveTo(c.p1.x, c.p1.y);
+            ctx.lineTo(c.p2.x, c.p2.y);
+        });
+        ctx.stroke();
+
+        requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+</script>
+</body>
+</html>

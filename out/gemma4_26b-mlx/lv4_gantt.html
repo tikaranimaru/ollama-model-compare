@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Gantt Chart Lv4</title>
+    <style>
+        :root {
+            --row-height: 50px;
+            --task-name-width: 160px;
+            --day-width: 50px;
+            --primary-color: #3b82f6;
+            --accent-color: #ef4444;
+            --grid-color: #e5e7eb;
+            --text-color: #374151;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f9fafb;
+            color: var(--text-color);
+            user-select: none;
+        }
+
+        .gantt-container {
+            display: flex;
+            border: 1px solid #d1d5db;
+            background: white;
+            overflow-x: auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 左側のタスク名列 */
+        .task-list {
+            width: var(--task-name-width);
+            flex-shrink: 0;
+            background: #f3f4f6;
+            border-right: 2px solid #d1d5db;
+            z-index: 10;
+        }
+
+        .task-name-cell {
+            height: var(--row-height);
+            line-height: var(--row-height);
+            padding-left: 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #e5e7eb;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 右側のタイムラインエリア */
+        .timeline-area {
+            position: relative;
+            flex-grow: 1;
+            min-width: calc(var(--day-width) * 21);
+        }
+
+        /* 日付軸のヘッダー */
+        .timeline-header {
+            display: flex;
+            height: var(--row-height);
+            border-bottom: 2px solid #d1d5db;
+            background: #f3f4f6;
+        }
+
+        .date-cell {
+            width: var(--day-width);
+            flex-shrink: 0;
+            text-align: center;
+            line-height: var(--row-height);
+            font-size: 12px;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        /* グリッドとバーのレイヤー */
+        .grid-layer {
+            position: absolute;
+            top: var(--row-height);
+            left: 0;
+            width: 100%;
+            height: calc(var(--row-height) * 6);
+            pointer-events: none;
+        }
+
+        .grid-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background-color: var(--grid-color);
+        }
+
+        /* 依存関係のSVGレイヤー */
+        .dependency-layer {
+            position: absolute;
+            top: var(--row-height);
+            left: 0;
+            width: 100%;
+            height: calc(var(--row-height) * 6);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* タスクバーのレイヤー */
+        .bars-layer {
+            position: absolute;
+            top: var(--row-height);
+            left: 0;
+            width: 100%;
+            height: calc(var(--row-height) * 6);
+            z-index: 2;
+        }
+
+        .task-bar {
+            position: absolute;
+            height: 30px;
+            margin-top: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: move;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* リサイズハンドル */
+        .resize-handle {
+            position: absolute;
+            width: 8px;
+            height: 30px;
+            background: rgba(0,0,0,0.2);
+            cursor: ew-resize;
+            top: 0;
+        }
+        .resize-left { left: 0; }
+        .resize-right { right: 0; }
+
+        /* 土日の色分け用 */
+        .weekend { background-color: #fef2f2; }
+    </style>
+</head>
+<body>
+
+<div id="gantt" class="gantt-container">
+    <!-- 左側：タスク名 -->
+    <div class="task-list" id="taskList"></div>
+
+    <!-- 右側：タイムライン -->
+    <div class="timeline-area" id="timelineArea">
+        <div class="timeline-header" id="dateHeader"></div>
+        <div class="grid-layer" id="gridLayer"></div>
+        <svg class="dependency-layer" id="dependencyLayer"></svg>
+        <div class="bars-layer" id="barsLayer"></div>
+    </div>
+</div>
+
+<script>
+    const startDate = new Date('2026-06-01T00:00:00');
+    const endDate = new Date('2026-06-21T00:00:00');
+    const dayWidth = 50;
+    const rowHeight = 50;
+
+    let tasks = [
+        { id: 'T1', name: '要件定義', start: '2026-06-01', end: '2026-06-04', deps: [] },
+        { id: 'T2', name: '基本設計', start: '2026-06-05', end: '2026-06-09', deps: ['T1'] },
+        { id: 'T3', name: 'UI設計',   start: '2026-06-05', end: '2026-06-08', deps: ['T1'] },
+        { id: 'T4', name: '実装',     start: '2026-06-10', end: '2026-06-17', deps: ['T2', 'T3'] },
+        { id: 'T5', name: 'テスト',   start: '2026-06-16', end: '2026-06-20', deps: ['T4'] },
+        { id: 'T6', name: 'リリース準備', start: '2026-06-19', end: '2026-06-21', deps: ['T5'] }
+    ];
+
+    function init() {
+        renderHeader();
+        renderGrid();
+        renderTasks();
+        drawDependencies();
+    }
+
+    function renderHeader() {
+        const header = document.getElementById('dateHeader');
+        header.innerHTML = '';
+        for (let i = 0; i <= 20; i++) {
+            const d = new Date(startDate);
+            d.setDate(startDate.getDate() + i);
+            const cell = document.createElement('div');
+            cell.className = 'date-cell';
+            // 土日判定 (6=Sat, 0=Sun)
+            if (d.getDay() === 0 || d.getDay() === 6) cell.classList.add('weekend');
+            cell.innerText = `${d.getMonth() + 1}/${d.getDate()}`;
+            header.appendChild(cell);
+        }
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('gridLayer');
+        grid.innerHTML = '';
+        for (let i = 0; i <= 21; i++) {
+            const line = document.createElement('div');
+            line.className = 'grid-line';
+            line.style.left = `${i * dayWidth}px`;
+            grid.appendChild(line);
+        }
+    }
+
+    function renderTasks() {
+        const taskList = document.getElementById('taskList');
+        const barsLayer = document.getElementById('barsLayer');
+        taskList.innerHTML = '';
+        barsLayer.innerHTML = '';
+
+        tasks.forEach((task, index) => {
+            // タスク名列
+            const nameCell = document.createElement('div');
+            nameCell.className = 'task-name-cell';
+            nameCell.innerText = task.name;
+            taskList.appendChild(nameCell);
+
+            // バーの作成
+            const bar = document.createElement('div');
+            bar.className = 'task-bar';
+            bar.innerText = task.name;
+            
+            const startIdx = getDayIndex(task.start);
+            const endIdx = getDayIndex(task.end);
+            const left = startIdx * dayWidth;
+            const width = (endIdx - startIdx + 1) * dayWidth;
+
+            bar.style.left = `${left}px`;
+            bar.style.width = `${width}px`;
+            bar.style.top = `${index * rowHeight}px`;
+
+            // リサイズハンドル（左）
+            const handleLeft = document.createElement('div');
+            handleLeft.className = 'resize-handle resize-left';
+            bar.appendChild(handleLeft);
+
+            // リサイズハンドル（右）
+            const handleRight = document.createElement('div');
+            handleRight.className = 'resize-handle resize-right';
+            bar.appendChild(handleRight);
+
+            // イベント設定
+            setupDragEvents(bar, task, index, handleLeft, handleRight);
+
+            barsLayer.appendChild(bar);
+        });
+    }
+
+    function getDayIndex(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        const diff = (d - startDate) / (1000 * 60 * 60 * 24);
+        return Math.round(diff);
+    }
+
+    function getDateFromIndex(idx) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + idx);
+        return d.toISOString().split('T')[0];
+    }
+
+    function setupDragEvents(bar, task, index, hLeft, hRight) {
+        let isDragging = false;
+        let isResizingLeft = false;
+        let isResizingRight = false;
+        let startX, startLeft, startEndIdx;
+
+        const onMouseDown = (e) => {
+            e.stopPropagation();
+            startX = e.clientX;
+            if (e.target === hLeft) {
+                isResizingLeft = true;
+            } else if (e.target === hRight) {
+                isResizingRight = true;
+            } else {
+                isDragging = true;
+            }
+            startLeft = parseInt(bar.style.left);
+            const currentEndIdx = getDayIndex(task.end);
+            const currentStartIdx = getDayIndex(task.start);
+            startEndIdx = currentEndIdx;
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        };
+
+        const onMouseMove = (e) => {
+            const dx = e.clientX - startX;
+            const deltaDays = Math.round(dx / dayWidth);
+
+            if (isDragging) {
+                const newStartIdx = getDayIndex(task.start) + deltaDays;
+                const newEndIdx = getDayIndex(task.end) + deltaDays;
+                // 範囲制限
+                const clampedStart = Math.max(0, newStartIdx);
+                const clampedEnd = Math.min(20, newEndIdx);
+                
+                task.start = getDateFromIndex(clampedStart);
+                task.end = getDateFromIndex(clampedEnd);
+            } else if (isResizingLeft) {
+                const newStartIdx = getDayIndex(task.start) + deltaDays;
+                const clampedStart = Math.max(0, Math.min(newStartIdx, getDayIndex(task.end) - 1));
+                task.start = getDateFromIndex(clampedStart);
+            } else if (isResizingRight) {
+                const newEndIdx = getDayIndex(task.end) + deltaDays;
+                const clampedEnd = Math.min(20, Math.max(getDayIndex(task.start), newEndIdx));
+                task.end = getDateFromIndex(clampedEnd);
+            }
+
+            updateBarUI(bar, task, index);
+            drawDependencies();
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+            isResizingLeft = false;
+            isResizingRight = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        bar.addEventListener('mousedown', onMouseDown);
+        hLeft.addEventListener('mousedown', onMouseDown);
+        hRight.addEventListener('mousedown', onMouseDown);
+    }
+
+    function updateBarUI(bar, task, index) {
+        const startIdx = getDayIndex(task.start);
+        const endIdx = getDayIndex(task.end);
+        bar.style.left = `${startIdx * dayWidth}px`;
+        bar.style.width = `${(endIdx - startIdx + 1) * dayWidth}px`;
+    }
+
+    function drawDependencies() {
+        const svg = document.getElementById('dependencyLayer');
+        svg.innerHTML = '';
+        
+        tasks.forEach((task, i) => {
+            task.deps.forEach(depId => {
+                const depTask = tasks.find(t => t.id === depId);
+                if (!depTask) return;
+
+                const depIdx = tasks.findIndex(t => t.id === depId);
+                
+                // 依存元の終了位置 (X, Y)
+                const startX = (getDayIndex(depTask.end) + 1) * dayWidth;
+                const startY = (depIdx * rowHeight) + rowHeight/2 + 15;
+
+                // 依存先の開始位置 (X, Y)
+                const endX = getDayIndex(task.start) * dayWidth;
+                const endY = (i * rowHeight) + rowHeight/2 + 15;
+
+                // 線を描画 (折れ線)
+                const midX = startX + (endX - startX) / 2;
+                const pathData = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+                
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", pathData);
+                path.setAttribute("stroke", "#9ca3af");
+                path.setAttribute("stroke-width", "1.5");
+                path.setAttribute("fill", "none");
+                svg.appendChild(path);
+
+                // 矢印の先端を描画
+                const arrowHead = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const angle = Math.atan2(endY - (startY + (midX-startX)), 0); // Simplified
+                // 簡易的な矢印の先端
+                const headSize = 5;
+                const p1x = endX; const p1y = endY;
+                const p2x = endX - headSize; const p2y = endY - headSize/2;
+                const p3x = endX - headSize; const p3y = endY + headSize/2;
+                arrowHead.setAttribute("d", `M ${p1x} ${p1y} L ${p2x} ${p2y} L ${p3x} ${p3y} Z`);
+                arrowHead.setAttribute("fill", "#9ca3af");
+                svg.appendChild(arrowHead);
+            });
+        });
+    }
+
+    init();
+</script>
+
+</body>
+</html>

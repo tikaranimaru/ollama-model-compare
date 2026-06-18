@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Gantt Chart Lv4</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+            user-select: none;
+        }
+        .gantt-container {
+            display: flex;
+            background: white;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        .task-column {
+            width: 150px;
+            flex-shrink: 0;
+            border-right: 2px solid #ddd;
+            background: #fafafa;
+        }
+        .task-header, .task-name {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+        }
+        .task-name {
+            font-weight: normal;
+            font-size: 0.9em;
+            height: 50px;
+            border-bottom: 1px solid #eee;
+        }
+        .chart-area {
+            position: relative;
+            flex-grow: 1;
+        }
+        svg {
+            display: block;
+        }
+        .grid-line {
+            stroke: #e0e0e0;
+            stroke-width: 1;
+        }
+        .date-label {
+            font-size: 12px;
+            fill: #666;
+        }
+        .bar {
+            fill: #4a90e2;
+            cursor: move;
+            rx: 4;
+            ry: 4;
+        }
+        .bar-text {
+            font-size: 12px;
+            fill: white;
+            pointer-events: none;
+        }
+        .dependency-line {
+            stroke: #555;
+            stroke-width: 1.5;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        .resize-handle {
+            fill: transparent;
+            cursor: ew-resize;
+        }
+    </style>
+</head>
+<body>
+
+<div class="gantt-container" id="gantt">
+    <div class="task-column" id="task-names">
+        <div class="task-header">タスク名</div>
+        <!-- Task names will be injected here -->
+    </div>
+    <div class="chart-area" id="chart-container">
+        <svg id="gantt-svg"></svg>
+    </div>
+</div>
+
+<script>
+/**
+ * DATA INITIALIZATION
+ */
+const startDate = new Date('2026-06-01T00:00:00');
+const endDate = new Date('2026-06-21T00:00:00');
+const totalDays = 21; // From June 1 to June 21 inclusive
+
+let tasks = [
+    { id: 'T1', name: '要件定義', start: new Date('2026-06-01'), end: new Date('2026-06-04'), deps: [] },
+    { id: 'T2', name: '基本設計', start: new Date('2026-06-05'), end: new Date('2026-06-09'), deps: ['T1'] },
+    { id: 'T3', name: 'UI設計', start: new Date('2026-06-05'), end: new Date('2026-06-08'), deps: ['T1'] },
+    { id: 'T4', name: '実装', start: new Date('2026-06-10'), end: new Date('2026-06-17'), deps: ['T2', 'T3'] },
+    { id: 'T5', name: 'テスト', start: new Date('2026-06-16'), end: new Date('2026-06-20'), deps: ['T4'] },
+    { id: 'T6', name: 'リリース準備', start: new Date('2026-06-19'), end: new Date('2026-06-21'), deps: ['T5'] }
+];
+
+/**
+ * CONFIG & STATE
+ */
+const rowHeight = 50;
+const headerHeight = 40;
+const dayWidth = 40; // Fixed width per day for stability
+const svgWidth = totalDays * dayWidth;
+const svgHeight = (tasks.length + 1) * rowHeight;
+
+let dragTarget = null;
+let dragMode = null; // 'move', 'resize-start', 'resize-end'
+let startX = 0;
+let initialStart = null;
+let initialEnd = null;
+
+const svg = document.getElementById('gantt-svg');
+const taskNamesCol = document.getElementById('task-names');
+const chartContainer = document.getElementById('chart-container');
+
+// Set SVG dimensions
+svg.setAttribute('width', svgWidth);
+svg.setAttribute('height', svgHeight);
+
+/**
+ * UTILS
+ */
+function dateToX(date) {
+    const diffTime = date - startDate;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    return diffDays * dayWidth;
+}
+
+function xToDate(x) {
+    const days = x / dayWidth;
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + Math.round(days)); // Snap to nearest day for simplicity in this demo, or use float for smooth
+    // To allow smooth dragging, we'll actually calculate more precisely:
+    const preciseDate = new Date(startDate.getTime() + (x / dayWidth) * (1000 * 60 * 60 * 24));
+    return preciseDate;
+}
+
+/**
+ * RENDER ENGINE
+ */
+function render() {
+    // Clear SVG
+    svg.innerHTML = `
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#555" />
+            </marker>
+        </defs>
+    `;
+
+    // Render Sidebar Names (Sync with SVG rows)
+    taskNamesCol.innerHTML = '<div class="task-header">タスク名</div>';
+    tasks.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'task-name';
+        div.textContent = t.name;
+        taskNamesCol.appendChild(div);
+    });
+
+    // 1. Draw Grid & Date Axis
+    for (let i = 0; i <= totalDays; i++) {
+        const x = i * dayWidth;
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        
+        // Vertical line
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute('x1', x); line.setAttribute('y1', 0);
+        line.setAttribute('x2', x); line.setAttribute('y2', svgHeight);
+        line.setAttribute('class', 'grid-line');
+        svg.appendChild(line);
+
+        // Date Label
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute('x', x + 5);
+        text.setAttribute('y', 25);
+        text.setAttribute('class', 'date-label');
+        text.textContent = `${date.getMonth() + 1}/${date.getDate()}`;
+        svg.appendChild(text);
+    }
+
+    // 2. Draw Dependency Lines (Before bars)
+    tasks.forEach((task, idx) => {
+        const y = headerHeight + (idx * rowHeight) + (rowHeight / 2);
+        task.deps.forEach(depId => {
+            const depTask = tasks.find(t => t.id === depId);
+            if (depTask) {
+                const depIdx = tasks.indexOf(depTask);
+                const depY = headerHeight + (depIdx * rowHeight) + (rowHeight / 2);
+                const startX_dep = dateToX(depTask.end);
+                const endX_task = dateToX(task.start);
+
+                // Draw L-shaped line or straight line? Let's do a simple path from end of dep to start of task
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                // Path: Move to (depEndX, depY) -> Line to (depEndX, taskY) -> Line to (taskStartX, taskY)
+                const d = `M ${startX_dep} ${depY} L ${startX_dep + 10} ${depY} L ${startX_dep + 10} ${y} L ${endX_task} ${y}`;
+                // Actually, a simpler straight line with arrow is more robust for this requirement:
+                const simpleD = `M ${startX_dep} ${depY} L ${endX_task} ${y}`;
+                
+                path.setAttribute('d', simpleD);
+                path.setAttribute('class', 'dependency-line');
+                svg.appendChild(path);
+            }
+        });
+    });
+
+    // 3. Draw Bars & Handles
+    tasks.forEach((task, idx) => {
+        const y = headerHeight + (idx * rowHeight) + 5;
+        const h = rowHeight - 10;
+        const xStart = dateToX(task.start);
+        const xEnd = dateToX(task.end);
+        const width = Math.max(xEnd - xStart, 5);
+
+        // Bar Rect
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute('x', xStart);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', width);
+        rect.setAttribute('height', h);
+        rect.setAttribute('class', 'bar');
+        rect.dataset.id = task.id;
+        svg.appendChild(rect);
+
+        // Resize Handle (End)
+        const handle = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        handle.setAttribute('x', xEnd - 8);
+        handle.setAttribute('y', y);
+        handle.setAttribute('width', 8);
+        handle.setAttribute('height', h);
+        handle.setAttribute('class', 'resize-handle');
+        handle.dataset.id = task.id;
+        svg.appendChild(handle);
+
+        // Task Text
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute('x', xStart + 5);
+        text.setAttribute('y', y + h / 2 + 5);
+        text.setAttribute('class', 'bar-text');
+        const duration = Math.round((task.end - task.start) / (1000 * 60 * 60 * 24)) + 1;
+        text.textContent = `${task.name} (${duration}d)`;
+        svg.appendChild(text);
+    });
+}
+
+/**
+ * INTERACTION LOGIC
+ */
+svg.addEventListener('mousedown', e => {
+    const target = e.target;
+    const taskId = target.dataset.id;
+    if (!taskId) return;
+
+    dragTarget = tasks.find(t => t.id === taskId);
+    startX = e.clientX;
+
+    if (target.classList.contains('resize-handle')) {
+        dragMode = 'resize-end';
+    } else if (target.classList.contains('bar')) {
+        dragMode = 'move';
+    }
+
+    initialStart = new Date(dragTarget.start);
+    initialEnd = new Date(dragTarget.end);
+});
+
+window.addEventListener('mousemove', e => {
+    if (!dragTarget || !dragMode) return;
+
+    const deltaX = e.clientX - startX;
+    const deltaDays = deltaX / dayWidth;
+
+    if (dragMode === 'move') {
+        // Move entire bar: both start and end shift by same amount
+        const newStart = new Date(initialStart);
+        newStart.setDate(newStart.getDate() + Math.round(deltaDays));
+        const newEnd = new Date(initialEnd);
+        newEnd.setDate(newEnd.getDate() + Math.round(deltaDays));
+        
+        // Ensure end is after start (though moving both keeps it same)
+        dragTarget.start = newStart;
+        dragTarget.end = newEnd;
+    } else if (dragMode === 'resize-end') {
+        const newEnd = new Date(initialEnd);
+        newEnd.setDate(newEnd.getDate() + Math.round(deltaDays));
+        // Prevent end from being before start
+        if (newEnd >= dragTarget.start) {
+            dragTarget.end = newEnd;
+        }
+    }
+
+    render();
+});
+
+window.addEventListener('mouseup', () => {
+    dragTarget = null;
+    dragMode = null;
+});
+
+// Initial Render
+render();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+            background-color: #111;
+            margin: 0 auto;
+        }
+        #ui-layer {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            color: white;
+        }
+        #controls {
+            background: rgba(50, 50, 50, 0.8);
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #toggle-btn {
+            margin-bottom: 5px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+        select {
+            padding: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <button id="toggle-btn">Toggle Menu</button>
+    <div id="controls" style="display: none;">
+        <label for="preset-select">Select Pattern:</label>
+        <select id="preset-select">
+            <option value="0">Pattern 1 (r=55, d=80)</option>
+            <option value="1">Pattern 2 (r=44, d=110)</option>
+            <option value="2">Pattern 3 (r=88, d=50)</option>
+        </select>
+    </div>
+</div>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const presetSelect = document.getElementById('preset-select');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const controls = document.getElementById('controls');
+
+    // Fixed values
+    const R = 220;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Presets: [r, d]
+    const presets = [
+        { r: 55, d: 80 },
+        { r: 44, d: 110 },
+        { r: 88, d: 50 }
+    ];
+
+    let currentR = presets[0].r;
+    let currentD = presets[0].d;
+    let t = 0;
+    let prevX = 0;
+    let prevY = 0;
+    let isDrawing = true;
+    let thetaMax = 0;
+
+    function gcd(a, b) {
+        return b === 0 ? a : gcd(b, a % b);
+    }
+
+    function initPattern(index) {
+        const p = presets[index];
+        currentR = p.r;
+        currentD = p.d;
+        t = 0;
+        isDrawing = true;
+
+        // Calculate the angle required to close the curve
+        // The period is 2 * PI * (r / gcd(R, r))
+        thetaMax = 2 * Math.PI * (currentR / gcd(R, currentR));
+
+        // Clear canvas and set initial point
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const startX = (R - currentR) * Math.cos(0) + currentD * Math.cos(0);
+        const startY = (R - currentR) * Math.sin(0) - currentD * Math.sin(0);
+        prevX = startX;
+        prevY = startY;
+    }
+
+    function draw() {
+        if (isDrawing) {
+            // Hypotrochoid parametric equations
+            const x = (R - currentR) * Math.cos(t) + currentD * Math.cos(((R - currentR) / currentR) * t);
+            const y = (R - currentR) * Math.sin(t) - currentD * Math.sin(((R - currentR) / currentR) * t);
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#0ff'; // Cyan color for visibility
+            ctx.lineWidth = 2;
+            ctx.moveTo(centerX + prevX, centerY + prevY);
+            ctx.lineTo(centerX + x, centerY + y);
+            ctx.stroke();
+
+            prevX = x;
+            prevY = y;
+
+            // Increment t (step size controls drawing speed)
+            t += 0.05;
+
+            if (t >= thetaMax) {
+                isDrawing = false;
+            }
+        }
+        requestAnimationFrame(draw);
+    }
+
+    // UI Events
+    presetSelect.addEventListener('change', (e) => {
+        initPattern(parseInt(e.target.value));
+    });
+
+    toggleBtn.addEventListener('click', () => {
+        controls.style.display = controls.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    // Start
+    initPattern(0);
+    requestAnimationFrame(draw);
+
+</script>
+</body>
+</html>

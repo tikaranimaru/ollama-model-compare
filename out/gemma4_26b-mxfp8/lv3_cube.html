@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Cube Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            width: 900px;
+            height: 600px;
+            background-color: #111;
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(50, 50, 50, 0.8);
+            padding: 10px;
+            border-radius: 4px;
+            color: white;
+            font-family: sans-serif;
+            user-select: none;
+        }
+        #ui-container.hidden {
+            display: none;
+        }
+        #toggle-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(50, 50, 50, 0.8);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: sans-serif;
+            z-index: 10;
+        }
+        .slider-label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+<button id="toggle-btn">UI</button>
+<div id="ui-container">
+    <span class="slider-label">Rotation Speed</span>
+    <input type="range" id="speed-slider" min="0" max="0.1" step="0.001" value="0.02">
+</div>
+
+<script>
+/**
+ * 3D Cube Simulation - Painter's Algorithm Implementation
+ */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const speedSlider = document.getElementById('speed-slider');
+const uiContainer = document.getElementById('ui-container');
+const toggleBtn = document.getElementById('toggle-btn');
+
+// UI Toggle logic
+toggleBtn.addEventListener('click', () => {
+    uiContainer.classList.toggle('hidden');
+});
+
+// 3D Data Structures
+// Vertices of a cube (x, y, z)
+const vertices = [
+    [-1, -1,  1], [1, -1,  1], [1,  1,  1], [-1,  1,  1], // Front face
+    [-1, -1, -1], [1, -1, -1], [1,  1, -1], [-1,  1, -1]  // Back face
+];
+
+// Faces defined by vertex indices and colors
+const faces = [
+    { indices: [0, 1, 2, 3], color: '#FF5555' }, // Front (+Z)
+    { indices: [5, 4, 7, 6], color: '#55FF55' }, // Back (-Z)
+    { indices: [3, 2, 6, 7], color: '#5555FF' }, // Top (+Y)
+    { indices: [4, 5, 1, 0], color: '#FFFF55' }, // Bottom (-Y)
+    { indices: [1, 5, 6, 2], color: '#55FFFF' }, // Right (+X)
+    { indices: [4, 0, 3, 7], color: '#FF55FF' }  // Left (-X)
+];
+
+let angleX = 0;
+let angleY = 0;
+let angleZ = 0;
+
+/**
+ * Matrix Rotation Functions
+ */
+function rotateX(v, theta) {
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    return [
+        v[0],
+        v[1] * cos - v[2] * sin,
+        v[1] * sin + v[2] * cos
+    ];
+}
+
+function rotateY(v, theta) {
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    return [
+        v[0] * cos + v[2] * sin,
+        v[1],
+        -v[0] * sin + v[2] * cos
+    ];
+}
+
+function rotateZ(v, theta) {
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    return [
+        v[0] * cos - v[1] * sin,
+        v[0] * sin + v[1] * cos,
+        v[2]
+    ];
+}
+
+/**
+ * Perspective Projection
+ */
+function project(v) {
+    const focalLength = 450;
+    const distance = 6; // Distance from camera to center of cube
+    const scale = focalLength / (v[2] + distance);
+    return [
+        v[0] * scale + canvas.width / 2,
+        v[1] * scale + canvas.height / 2
+    ];
+}
+
+function update() {
+    const speed = parseFloat(speedSlider.value);
+    angleX += speed;
+    angleY += speed * 0.7;
+    angleZ += speed * 0.5;
+}
+
+function draw() {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 1. Transform all vertices
+    const transformedVertices = vertices.map(v => {
+        let rotated = rotateX(v, angleX);
+        rotated = rotateY(rotated, angleY);
+        rotated = rotateZ(rotated, angleZ);
+        return rotated;
+    });
+
+    // 2. Prepare faces with their centroid Z for Painter's Algorithm
+    const faceData = faces.map(face => {
+        let sumZ = 0;
+        const projectedPoints = face.indices.map(idx => {
+            const v = transformedVertices[idx];
+            sumZ += v[2];
+            return project(v);
+        });
+
+        return {
+            points: projectedPoints,
+            color: face.color,
+            avgZ: sumZ / face.indices.length
+        };
+    });
+
+    // 3. Sort faces by Z (Painter's Algorithm: furthest first)
+    faceData.sort((a, b) => a.avgZ - b.avgZ);
+
+    // 4. Draw sorted faces
+    faceData.forEach(face => {
+        ctx.beginPath();
+        ctx.fillStyle = face.color;
+        ctx.moveTo(face.points[0][0], face.points[0][1]);
+        for (let i = 1; i < face.points.length; i++) {
+            ctx.lineTo(face.points[i][0], face.points[i][1]);
+        }
+        ctx.closePath();
+        ctx.fill();
+    });
+
+    update();
+    requestAnimationFrame(draw);
+}
+
+// Start loop
+requestAnimationFrame(draw);
+
+</script>
+</body>
+</html>

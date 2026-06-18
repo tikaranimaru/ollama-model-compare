@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Cube Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+        canvas {
+            background-color: #111;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #ui-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(40, 40, 40, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            user-select: none;
+            transition: transform 0.3s ease;
+        }
+        #ui-panel.collapsed {
+            transform: translateY(calc(100% - 40px));
+        }
+        .ui-row {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #toggle-btn {
+            cursor: pointer;
+            background: #555;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<div id="ui-panel">
+    <button id="toggle-btn">Toggle Menu</button>
+    <div class="ui-row">
+        <label>Rotation Speed</label>
+        <input type="range" id="speed-slider" min="0" max="5" step="0.1" value="1">
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const speedSlider = document.getElementById('speed-slider');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const uiPanel = document.getElementById('ui-panel');
+
+    toggleBtn.onclick = () => uiPanel.classList.toggle('collapsed');
+
+    // 3D Vertices of a cube (x, y, z)
+    const vertices = [
+        {x: -1, y: -1, z: -1}, {x: 1, y: -1, z: -1}, {x: 1, y: 1, z: -1}, {x: -1, y: 1, z: -1},
+        {x: -1, y: -1, z: 1},  {x: 1, y: -1, z: 1},  {x: 1, y: 1, z: 1},  {x: -1, y: 1, z: 1}
+    ];
+
+    // Faces defined by vertex indices and colors
+    const faces = [
+        {indices: [0, 1, 2, 3], color: '#ff0000'}, // Back (Red)
+        {indices: [4, 5, 6, 7], color: '#00ff00'}, // Front (Green)
+        {indices: [0, 4, 7, 3], color: '#0000ff'}, // Left (Blue)
+        {indices: [1, 2, 6, 5], color: '#ffff00'}, // Right (Yellow)
+        {indices: [3, 2, 6, 7], color: '#ff00ff'}, // Top (Magenta)
+        {indices: [0, 1, 5, 4], color: '#00ffff'}  // Bottom (Cyan)
+    ];
+
+    let angleX = 0;
+    let angleY = 0;
+    let angleZ = 0;
+
+    function rotate(v, ax, ay, az) {
+        let {x, y, z} = v;
+
+        // Rotate X
+        let cosX = Math.cos(ax), sinX = Math.sin(ax);
+        let y1 = y * cosX - z * sinX;
+        let z1 = y * sinX + z * cosX;
+
+        // Rotate Y
+        let cosY = Math.cos(ay), sinY = Math.sin(ay);
+        let x2 = x * cosY + z1 * sinY;
+        let z2 = -x * sinY + z1 * cosY;
+
+        // Rotate Z
+        let cosZ = Math.cos(az), sinZ = Math.sin(az);
+        let x3 = x2 * cosZ - y1 * sinZ;
+        let y3 = x2 * sinZ + y1 * cosZ;
+
+        return {x: x3, y: y3, z: z2};
+    }
+
+    function project(v) {
+        const focalLength = 600;
+        const distance = 5; // Distance from camera to origin
+        const scale = focalLength / (v.z + distance);
+        return {
+            x: v.x * scale + canvas.width / 2,
+            y: v.y * scale + canvas.height / 2
+        };
+    }
+
+    function render() {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const speed = parseFloat(speedSlider.value) * 0.01;
+        angleX += speed;
+        angleY += speed * 0.8;
+        angleZ += speed * 0.6;
+
+        // Transform vertices
+        const transformedVertices = vertices.map(v => rotate(v, angleX, angleY, angleZ));
+
+        // Calculate Z-depth for each face (Painter's Algorithm)
+        const sortedFaces = faces.map(face => {
+            let avgZ = 0;
+            face.indices.forEach(idx => {
+                avgZ += transformedVertices[idx].z;
+            });
+            return { ...face, z: avgZ / 4 };
+        }).sort((a, b) => b.z - a.z); // Sort far to near
+
+        // Draw faces
+        sortedFaces.forEach(face => {
+            ctx.beginPath();
+            const p0 = project(transformedVertices[face.indices[0]]);
+            ctx.moveTo(p0.x, p0.y);
+
+            for (let i = 1; i < 4; i++) {
+                const p = project(transformedVertices[face.indices[i]]);
+                ctx.lineTo(p.x, p.y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = face.color;
+            ctx.fill();
+        });
+
+        requestAnimationFrame(render);
+    }
+
+    render();
+</script>
+</body>
+</html>

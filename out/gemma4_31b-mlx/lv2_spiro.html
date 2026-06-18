@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Hypotrochoid Spirograph</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        canvas {
+            background-color: #111;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            user-select: none;
+        }
+        #ui-content {
+            display: block;
+        }
+        #ui-content.hidden {
+            display: none;
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        label {
+            font-size: 12px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        select {
+            padding: 5px;
+            cursor: pointer;
+        }
+        #toggle-ui {
+            cursor: pointer;
+            background: #444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<div id="ui-container">
+    <button id="toggle-ui">Toggle UI</button>
+    <div id="ui-content">
+        <div class="control-group">
+            <label for="preset-select">Pattern Preset</label>
+            <select id="preset-select">
+                <option value="0">模様1 (r=55, d=80)</option>
+                <option value="1">模様2 (r=44, d=110)</option>
+                <option value="2">模様3 (r=88, d=50)</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const presetSelect = document.getElementById('preset-select');
+    const toggleBtn = document.getElementById('toggle-ui');
+    const uiContent = document.getElementById('ui-content');
+
+    // Constants
+    const R = 220;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Presets [r, d]
+    const presets = [
+        [55, 80],
+        [44, 110],
+        [88, 50]
+    ];
+
+    let currentR_small = presets[0][0];
+    let currentD = presets[0][1];
+    let theta = 0;
+    let prevX = 0;
+    let prevY = 0;
+    let isDrawing = false;
+    let maxTheta = 0;
+
+    function gcd(a, b) {
+        return b === 0 ? a : gcd(b, a % b);
+    }
+
+    function initDrawing() {
+        const r = currentR_small;
+        // The curve closes when theta reaches 2 * PI * (r / gcd(R, r))
+        maxTheta = (2 * Math.PI) * (r / gcd(R, r));
+        theta = 0;
+        
+        // Calculate starting point
+        const x0 = (R - r) * Math.cos(0) + currentD * Math.cos(((R - r) / r) * 0);
+        const y0 = (R - r) * Math.sin(0) - currentD * Math.sin(((R - r) / r) * 0);
+        prevX = centerX + x0;
+        prevY = centerY + y0;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(prevX, prevY);
+        
+        isDrawing = true;
+    }
+
+    function animate() {
+        if (!isDrawing) return;
+
+        // Draw in small increments for progressive effect
+        const step = 0.05; 
+        const iterationsPerFrame = 2; // Speed up drawing slightly
+
+        for (let i = 0; i < iterationsPerFrame; i++) {
+            theta += step;
+            if (theta > maxTheta) {
+                theta = maxTheta;
+                isDrawing = false;
+            }
+
+            const r = currentR_small;
+            const d = currentD;
+            
+            // Hypotrochoid formula
+            const x = (R - r) * Math.cos(theta) + d * Math.cos(((R - r) / r) * theta);
+            const y = (R - r) * Math.sin(theta) - d * Math.sin(((R - r) / r) * theta);
+
+            const currX = centerX + x;
+            const currY = centerY + y;
+
+            ctx.lineTo(currX, currY);
+            ctx.stroke();
+
+            prevX = currX;
+            prevY = currY;
+        }
+
+        if (isDrawing) {
+            requestAnimationFrame(animate);
+        }
+    }
+
+    presetSelect.addEventListener('change', (e) => {
+        const idx = e.target.value;
+        currentR_small = presets[idx][0];
+        currentD = presets[idx][1];
+        initDrawing();
+        requestAnimationFrame(animate);
+    });
+
+    toggleBtn.addEventListener('click', () => {
+        uiContent.classList.toggle('hidden');
+    });
+
+    // Start initial drawing
+    initDrawing();
+    requestAnimationFrame(animate);
+
+</script>
+</body>
+</html>

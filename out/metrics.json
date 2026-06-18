@@ -1,0 +1,352 @@
+[
+ {
+  "model": "gemma4:12b-mxfp8",
+  "task": "lv1_landing",
+  "think": true,
+  "gen_tokens": 5596,
+  "gen_tps": 19.0,
+  "wall_s": 297.6,
+  "bytes": 15495,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:12b-mxfp8",
+  "task": "lv3_cube",
+  "think": true,
+  "gen_tokens": 4035,
+  "gen_tps": 20.3,
+  "wall_s": 200.2,
+  "bytes": 6087,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:12b-mxfp8",
+  "task": "lv4_gantt",
+  "think": true,
+  "gen_tokens": 5388,
+  "gen_tps": 19.6,
+  "wall_s": 276.0,
+  "bytes": 13101,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:12b-mxfp8",
+  "task": "lv5_cloth",
+  "think": true,
+  "gen_tokens": 4456,
+  "gen_tps": 19.6,
+  "wall_s": 227.9,
+  "bytes": 6883,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mlx",
+  "task": "lv1_landing",
+  "think": true,
+  "gen_tokens": 5378,
+  "gen_tps": 59.1,
+  "wall_s": 91.9,
+  "bytes": 13754,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mlx",
+  "task": "lv3_cube",
+  "think": true,
+  "gen_tokens": 9414,
+  "gen_tps": 56.5,
+  "wall_s": 167.0,
+  "bytes": 6071,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mlx",
+  "task": "lv4_gantt",
+  "think": true,
+  "gen_tokens": 6372,
+  "gen_tps": 57.4,
+  "wall_s": 111.6,
+  "bytes": 12951,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mlx",
+  "task": "lv5_cloth",
+  "think": true,
+  "gen_tokens": 12849,
+  "gen_tps": 55.9,
+  "wall_s": 230.2,
+  "bytes": 6169,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mxfp8",
+  "task": "lv1_landing",
+  "think": true,
+  "gen_tokens": 5335,
+  "gen_tps": 44.8,
+  "wall_s": 119.6,
+  "bytes": 13454,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mxfp8",
+  "task": "lv2_spiro",
+  "think": true,
+  "gen_tokens": 9357,
+  "gen_tps": 46.2,
+  "wall_s": 203.2,
+  "bytes": 4460,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mxfp8",
+  "task": "lv3_cube",
+  "think": true,
+  "gen_tokens": 4392,
+  "gen_tps": 49.0,
+  "wall_s": 90.1,
+  "bytes": 5274,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mxfp8",
+  "task": "lv4_gantt",
+  "think": true,
+  "gen_tokens": 5249,
+  "gen_tps": 47.2,
+  "wall_s": 112.0,
+  "bytes": 10273,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mxfp8",
+  "task": "lv5_cloth",
+  "think": true,
+  "gen_tokens": 4074,
+  "gen_tps": 48.0,
+  "wall_s": 85.8,
+  "bytes": 6879,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:12b-mxfp8",
+  "task": "lv2_spiro",
+  "think": true,
+  "gen_tokens": 3271,
+  "gen_tps": 17.1,
+  "wall_s": 192.9,
+  "bytes": 4660,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:e2b-nvfp4",
+  "task": "lv1_landing",
+  "think": true,
+  "gen_tokens": 4870,
+  "gen_tps": 41.1,
+  "wall_s": 119.3,
+  "bytes": 13397,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:e2b-nvfp4",
+  "task": "lv2_spiro",
+  "think": true,
+  "gen_tokens": 2432,
+  "gen_tps": 66.4,
+  "wall_s": 36.9,
+  "bytes": 5049,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:e2b-nvfp4",
+  "task": "lv3_cube",
+  "think": true,
+  "gen_tokens": 3378,
+  "gen_tps": 65.7,
+  "wall_s": 51.7,
+  "bytes": 7537,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:e2b-nvfp4",
+  "task": "lv4_gantt",
+  "think": true,
+  "gen_tokens": 2870,
+  "gen_tps": 63.4,
+  "wall_s": 45.6,
+  "bytes": 7575,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:26b-mlx",
+  "task": "lv2_spiro",
+  "think": true,
+  "gen_tokens": 9605,
+  "gen_tps": 41.3,
+  "wall_s": 234.0,
+  "bytes": 4277,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:e2b-nvfp4",
+  "task": "lv5_cloth",
+  "think": true,
+  "gen_tokens": 3426,
+  "gen_tps": 59.0,
+  "wall_s": 58.5,
+  "bytes": 9565,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mxfp8",
+  "task": "lv1_landing",
+  "think": true,
+  "gen_tokens": 5596,
+  "gen_tps": 7.8,
+  "wall_s": 719.9,
+  "bytes": 16990,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mxfp8",
+  "task": "lv2_spiro",
+  "think": true,
+  "gen_tokens": 4123,
+  "gen_tps": 8.1,
+  "wall_s": 508.6,
+  "bytes": 4126,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mxfp8",
+  "task": "lv3_cube",
+  "think": true,
+  "gen_tokens": 2756,
+  "gen_tps": 7.1,
+  "wall_s": 389.9,
+  "bytes": 4996,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mxfp8",
+  "task": "lv4_gantt",
+  "think": true,
+  "gen_tokens": 4310,
+  "gen_tps": 7.5,
+  "wall_s": 575.8,
+  "bytes": 12328,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mxfp8",
+  "task": "lv5_cloth",
+  "think": true,
+  "gen_tokens": 3168,
+  "gen_tps": 6.9,
+  "wall_s": 463.7,
+  "bytes": 6563,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mlx",
+  "task": "lv1_landing",
+  "think": true,
+  "gen_tokens": 5279,
+  "gen_tps": 9.8,
+  "wall_s": 541.6,
+  "bytes": 16458,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mlx",
+  "task": "lv2_spiro",
+  "think": true,
+  "gen_tokens": 3363,
+  "gen_tps": 8.7,
+  "wall_s": 389.9,
+  "bytes": 4993,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mlx",
+  "task": "lv3_cube",
+  "think": true,
+  "gen_tokens": 3125,
+  "gen_tps": 8.2,
+  "wall_s": 385.1,
+  "bytes": 5324,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mlx",
+  "task": "lv4_gantt",
+  "think": true,
+  "gen_tokens": 4482,
+  "gen_tps": 8.8,
+  "wall_s": 513.7,
+  "bytes": 11996,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b-mlx",
+  "task": "lv5_cloth",
+  "think": true,
+  "gen_tokens": 2639,
+  "gen_tps": 10.6,
+  "wall_s": 252.4,
+  "bytes": 5964,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b",
+  "task": "lv1_landing",
+  "think": true,
+  "gen_tokens": 5102,
+  "gen_tps": 9.0,
+  "wall_s": 571.3,
+  "bytes": 15954,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b",
+  "task": "lv2_spiro",
+  "think": true,
+  "gen_tokens": 3462,
+  "gen_tps": 10.0,
+  "wall_s": 355.5,
+  "bytes": 4905,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b",
+  "task": "lv3_cube",
+  "think": true,
+  "gen_tokens": 2706,
+  "gen_tps": 9.0,
+  "wall_s": 305.8,
+  "bytes": 5573,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b",
+  "task": "lv4_gantt",
+  "think": true,
+  "gen_tokens": 4640,
+  "gen_tps": 8.7,
+  "wall_s": 537.7,
+  "bytes": 12423,
+  "done": "stop"
+ },
+ {
+  "model": "gemma4:31b",
+  "task": "lv5_cloth",
+  "think": true,
+  "gen_tokens": 2567,
+  "gen_tps": 10.1,
+  "wall_s": 260.0,
+  "bytes": 6184,
+  "done": "stop"
+ }
+]

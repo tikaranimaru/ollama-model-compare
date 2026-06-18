@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - チームの仕事を、流れるように。</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --bg-light: #f9fafb;
+            --white: #ffffff;
+            --border: #e5e7eb;
+            --accent: #eff6ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+            color: var(--text-main);
+            line-height: 1.6;
+            background-color: var(--white);
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        section {
+            padding: 80px 0;
+        }
+
+        /* Typography */
+        h1, h2, h3 {
+            line-height: 1.2;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: var(--white);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--bg-light);
+        }
+
+        /* Header */
+        header {
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 32px;
+            margin-right: 32px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 15px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--primary);
+        }
+
+        /* Hero */
+        .hero {
+            padding: 100px 0;
+            text-align: center;
+            background: radial-gradient(circle at top right, var(--accent), transparent);
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+        }
+
+        .hero p {
+            font-size: 20px;
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 0 auto 40px;
+        }
+
+        .hero-btns {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .hero-subtext {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* Companies */
+        .companies {
+            background-color: var(--bg-light);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 28px;
+            margin-bottom: 48px;
+            text-align: center;
+        }
+
+        .company-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .company-logo {
+            flex: 1;
+            height: 60px;
+            background: #e5e7eb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        /* Features */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .feature-card {
+            padding: 40px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+
+        /* Pricing */
+        .pricing {
+            background-color: var(--bg-light);
+        }
+
+        .pricing-grid {
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            gap: 24px;
+        }
+
+        .price-card {
+            background: var(--white);
+            padding: 40px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            flex: 1;
+            max-width: 350px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .price-card.recommended {
+            border: 2px solid var(--primary);
+            position: relative;
+            transform: scale(1.05);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .price-card h3 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .price-value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 24px;
+        }
+
+        .price-features {
+            list-style: none;
+            margin-bottom: 32px;
+            flex-grow: 1;
+        }
+
+        .price-features li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--bg-light);
+            font-size: 15px;
+        }
+
+        /* Case Studies */
+        .case-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+        }
+
+        .case-card {
+            padding: 40px;
+            background: var(--accent);
+            border-radius: 16px;
+        }
+
+        .quote {
+            font-size: 18px;
+            font-style: italic;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .author {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .role {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* FAQ */
+        .faq-container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            margin-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 24px;
+        }
+
+        .faq-q {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .faq-a {
+            color: var(--text-muted);
+            padding-left: 28px;
+        }
+
+        /* Final CTA */
+        .final-cta {
+            background-color: var(--primary);
+            color: var(--white);
+            text-align: center;
+            padding: 100px 0;
+        }
+
+        .final-cta h2 {
+            font-size: 40px;
+            margin-bottom: 32px;
+        }
+
+        .final-cta .btn {
+            background-color: var(--white);
+            color: var(--primary);
+        }
+
+        .final-cta .btn:hover {
+            background-color: var(--bg-light);
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 0 30px;
+            border-top: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 60px;
+            margin-bottom: 60px;
+        }
+
+        .footer-col h4 {
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li {
+            margin-bottom: 12px;
+        }
+
+        .footer-col a {
+            text-decoration: none;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover {
+            color: var(--primary);
+        }
+
+        .copyright {
+            text-align: center;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container header-inner">
+            <a href="#" class="logo">TaskFlow</a>
+            <nav>
+                <ul>
+                    <li><a href="#features">機能</a></li>
+                    <li><a href="#pricing">料金</a></li>
+                    <li><a href="#cases">導入事例</a></li>
+                    <li><a href="#faq">よくある質問</a></li>
+                </ul>
+            </nav>
+            <a href="#" class="btn btn-primary">無料で始める</a>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>チームの仕事を、流れるように。</h1>
+            <p>TaskFlow は、タスク・進捗・コミュニケーションを1つにまとめるプロジェクト管理ツールです。</p>
+            <div class="hero-btns">
+                <a href="#" class="btn btn-primary">無料で始める</a>
+                <a href="#" class="btn btn-secondary">デモを見る</a>
+            </div>
+            <div class="hero-subtext">クレジットカード不要・5分で開始</div>
+        </div>
+    </section>
+
+    <section class="companies">
+        <div class="container">
+            <h2 class="section-title">多くのチームに選ばれています</h2>
+            <div class="company-grid">
+                <div class="company-logo">ACME</div>
+                <div class="company-logo">Globex</div>
+                <div class="company-logo">Initech</div>
+                <div class="company-logo">Umbrella</div>
+                <div class="company-logo">Hooli</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features">
+        <div class="container">
+            <h2 class="section-title">機能</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>直感的なボード</h3>
+                    <p>ドラッグ＆ドロップでタスクを動かし、進捗をひと目で把握できます。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>リアルタイム共同編集</h3>
+                    <p>チーム全員の変更が即座に反映。認識のズレをなくします。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>強力な分析</h3>
+                    <p>進捗・負荷・期限のリスクを自動で可視化します。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="pricing" class="pricing">
+        <div class="container">
+            <h2 class="section-title">料金</h2>
+            <div class="pricing-grid">
+                <div class="price-card">
+                    <h3>Free</h3>
+                    <div class="price-value">¥0（月）</div>
+                    <ul class="price-features">
+                        <li>3プロジェクト</li>
+                        <li>5メンバー</li>
+                        <li>基本ボード</li>
+                    </ul>
+                    <a href="#" class="btn btn-secondary">無料で始める</a>
+                </div>
+                <div class="price-card recommended">
+                    <div class="badge">おすすめ</div>
+                    <h3>Pro（おすすめ）</h3>
+                    <div class="price-value">¥1,200（月・1人）</div>
+                    <ul class="price-features">
+                        <li>無制限プロジェクト</li>
+                        <li>優先サポート</li>
+                        <li>分析ダッシュボード</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary">Proを試す</a>
+                </div>
+                <div class="price-card">
+                    <h3>Business</h3>
+                    <div class="price-value">¥2,800（月・1人）</div>
+                    <ul class="price-features">
+                        <li>SSO/監査ログ</li>
+                        <li>専任サポート</li>
+                        <li>カスタム権限</li>
+                    </ul>
+                    <a href="#" class="btn btn-secondary">問い合わせる</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="cases">
+        <div class="container">
+            <h2 class="section-title">導入事例</h2>
+            <div class="case-grid">
+                <div class="case-card">
+                    <p class="quote">「導入後、リリースまでの時間が半分になりました。」</p>
+                    <p class="author">田中 美咲</p>
+                    <p class="role">株式会社ACME プロダクト責任者</p>
+                </div>
+                <div class="case-card">
+                    <p class="quote">「散らばっていた情報が1か所にまとまり、会議が減りました。」</p>
+                    <p class="author">佐藤 健</p>
+                    <p class="role">Globex Inc. エンジニアリングマネージャー</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="faq">
+        <div class="container">
+            <h2 class="section-title">よくある質問</h2>
+            <div class="faq-container">
+                <div class="faq-item">
+                    <p class="faq-q">Q: 無料プランに期限はありますか？</p>
+                    <p class="faq-a">A: いいえ、Freeプランはずっと無料でお使いいただけます。</p>
+                </div>
+                <div class="faq-item">
+                    <p class="faq-q">Q: 途中でプランを変更できますか？</p>
+                    <p class="faq-a">A: はい、いつでもアップグレード・ダウングレードできます。</p>
+                </div>
+                <div class="faq-item">
+                    <p class="faq-q">Q: データのエクスポートはできますか？</p>
+                    <p class="faq-a">A: はい、CSV・JSON形式でいつでも書き出せます。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="final-cta">
+        <div class="container">
+            <h2>今日から、チームの流れを変えよう。</h2>
+            <a href="#" class="btn btn-primary" style="background: white; color: var(--primary);">無料で始める</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h4>製品</h4>
+                    <ul>
+                        <li><a href="#">機能</a></li>
+                        <li><a href="#">料金</a></li>
+                        <li><a href="#">導入事例</a></li>
+                        <li><a href="#">更新情報</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>会社</h4>
+                    <ul>
+                        <li><a href="#">会社概要</a></li>
+                        <li><a href="#">採用情報</a></li>
+                        <li><a href="#">お問い合わせ</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>リソース</h4>
+                    <ul>
+                        <li><a href="#">ヘルプ</a></li>
+                        <li><a href="#">ブログ</a></li>
+                        <li><a href="#">API</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="copyright">
+                © 2026 TaskFlow Inc.
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

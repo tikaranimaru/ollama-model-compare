@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Gantt Chart - Project Management</title>
+    <style>
+        :root {
+            --day-width: 40px;
+            --row-height: 50px;
+            --sidebar-width: 180px;
+            --primary-color: #3b82f6;
+            --border-color: #e5e7eb;
+            --text-color: #374151;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            color: var(--text-color);
+            background-color: #f9fafb;
+        }
+
+        .gantt-container {
+            display: flex;
+            border: 1px solid var(--border-color);
+            background: white;
+            overflow-x: auto;
+            position: relative;
+            user-select: none;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            border-right: 2px solid var(--border-color);
+            background: #f3f4f6;
+            z-index: 10;
+        }
+
+        .sidebar-header {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            padding-left: 15px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-row {
+            height: var(--row-height);
+            display: flex;
+            align-items: center;
+            padding-left: 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+
+        /* Timeline Area */
+        .timeline {
+            position: relative;
+            flex-grow: 1;
+        }
+
+        .timeline-header {
+            display: flex;
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .day-cell {
+            width: var(--day-width);
+            min-width: var(--day-width);
+            text-align: center;
+            font-size: 0.75rem;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #f3f4f6;
+        }
+
+        .day-cell.weekend {
+            background-color: #fee2e2;
+        }
+
+        .timeline-body {
+            position: relative;
+        }
+
+        .grid-row {
+            height: var(--row-height);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+        }
+
+        .grid-cell {
+            width: var(--day-width);
+            min-width: var(--day-width);
+            border-right: 1px solid #f0f0f0;
+            height: 100%;
+        }
+
+        /* Bars */
+        .bar {
+            position: absolute;
+            height: 30px;
+            margin-top: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: move;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            white-space: nowrap;
+            overflow: hidden;
+            z-index: 5;
+        }
+
+        .handle {
+            position: absolute;
+            width: 8px;
+            height: 100%;
+            cursor: col-resize;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .handle-left { left: 0; }
+        .handle-right { right: 0; }
+
+        /* SVG Overlay for dependencies */
+        #dependency-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .dep-line {
+            stroke: #9ca3af;
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Project Gantt Chart (June 2026)</h2>
+    <div class="gantt-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">Task Name</div>
+            <!-- Rows added by JS -->
+        </div>
+        <div class="timeline">
+            <div class="timeline-header" id="date-axis">
+                <!-- Days added by JS -->
+            </div>
+            <div class="timeline-body" id="timeline-body">
+                <!-- Grid and Bars added by JS -->
+                <svg id="dependency-svg">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DATA = [
+            { id: 'T1', name: 'T1 要件定義', start: 0, end: 3, deps: [] },
+            { id: 'T2', name: 'T2 基本設計', start: 4, end: 8, deps: ['T1'] },
+            { id: 'T3', name: 'T3 UI設計', start: 4, end: 7, deps: ['T1'] },
+            { id: 'T4', name: 'T4 実装', start: 9, end: 16, deps: ['T2', 'T3'] },
+            { id: 'T5', name: 'T5 テスト', start: 15, end: 19, deps: ['T4'] },
+            { id: 'T6', name: 'T6 リリース準備', start: 18, end: 20, deps: ['T5'] }
+        ];
+
+        const START_DATE = new Date(2026, 5, 1); // June 1st, 2026
+        const TOTAL_DAYS = 21;
+        const DAY_WIDTH = 40;
+        const ROW_HEIGHT = 50;
+
+        let isDragging = false;
+        let isResizingLeft = false;
+        let isResizingRight = false;
+        let activeBar = null;
+        let startX = 0;
+        let initialStart = 0;
+        let initialEnd = 0;
+
+        function init() {
+            renderAxis();
+            renderTasks();
+            drawDependencies();
+        }
+
+        function renderAxis() {
+            const axis = document.getElementById('date-axis');
+            for (let i = 0; i < TOTAL_DAYS; i++) {
+                const date = new Date(START_DATE);
+                date.setDate(START_DATE.getDate() + i);
+                
+                const cell = document.createElement('div');
+                cell.className = 'day-cell';
+                if (date.getDay() === 0 || date.getDay() === 6) cell.classList.add('weekend');
+                
+                cell.innerHTML = `<div>${date.getMonth() + 1}/${date.getDate()}</div><div style="font-size:0.6rem">${['日','月','火','水','木','金','土'][date.getDay()]}</div>`;
+                axis.appendChild(cell);
+            }
+        }
+
+        function renderTasks() {
+            const sidebar = document.getElementById('sidebar');
+            const body = document.getElementById('timeline-body');
+
+            DATA.forEach((task, index) => {
+                // Sidebar row
+                const sRow = document.createElement('div');
+                sRow.className = 'sidebar-row';
+                sRow.textContent = task.name;
+                sidebar.appendChild(sRow);
+
+                // Grid row
+                const gRow = document.createElement('div');
+                gRow.className = 'grid-row';
+                for (let i = 0; i < TOTAL_DAYS; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    gRow.appendChild(cell);
+                }
+                body.appendChild(gRow);
+
+                // Bar
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.id = `bar-${task.id}`;
+                bar.textContent = task.name;
+                updateBarPosition(bar, task);
+
+                // Handles
+                const hLeft = document.createElement('div');
+                hLeft.className = 'handle handle-left';
+                const hRight = document.createElement('div');
+                hRight.className = 'handle handle-right';
+
+                bar.appendChild(hLeft);
+                bar.appendChild(hRight);
+
+                // Events
+                bar.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('handle-left')) {
+                        startResize(e, task, 'left');
+                    } else if (e.target.classList.contains('handle-right')) {
+                        startResize(e, task, 'right');
+                    } else {
+                        startDrag(e, task);
+                    }
+                });
+
+                body.appendChild(bar);
+            });
+        }
+
+        function updateBarPosition(el, task) {
+            const left = task.start * DAY_WIDTH;
+            const width = (task.end - task.start + 1) * DAY_WIDTH;
+            el.style.left = `${left}px`;
+            el.style.width = `${width}px`;
+            el.style.top = `${(DATA.indexOf(task)) * ROW_HEIGHT + 10}px`;
+        }
+
+        function startDrag(e, task) {
+            isDragging = true;
+            activeBar = task;
+            startX = e.pageX;
+            initialStart = task.start;
+            initialEnd = task.end;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', stopInteraction);
+        }
+
+        function startResize(e, task, side) {
+            if (side === 'left') isResizingLeft = true;
+            else isResizingRight = true;
+            activeBar = task;
+            startX = e.pageX;
+            initialStart = task.start;
+            initialEnd = task.end;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', stopInteraction);
+        }
+
+        function onMouseMove(e) {
+            if (!activeBar) return;
+            const deltaX = e.pageX - startX;
+            const dayDelta = Math.round(deltaX / DAY_WIDTH);
+
+            if (isDragging) {
+                activeBar.start = initialStart + dayDelta;
+                activeBar.end = initialEnd + dayDelta;
+            } else if (isResizingLeft) {
+                activeBar.start = Math.min(initialStart + dayDelta, activeBar.end - 1);
+                if (activeBar.start < 0) activeBar.start = 0;
+            } else if (isResizingRight) {
+                activeBar.end = Math.max(initialEnd + dayDelta, activeBar.start);
+                if (activeBar.end >= TOTAL_DAYS) activeBar.end = TOTAL_DAYS - 1;
+            }
+
+            const barEl = document.getElementById(`bar-${activeBar.id}`);
+            updateBarPosition(barEl, activeBar);
+            drawDependencies();
+        }
+
+        function stopInteraction() {
+            isDragging = false;
+            isResizingLeft = false;
+            isResizingRight = false;
+            activeBar = null;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', stopInteraction);
+        }
+
+        function drawDependencies() {
+            const svg = document.getElementById('dependency-svg');
+            // Clear existing lines (keep defs)
+            const lines = svg.querySelectorAll('.dep-line');
+            lines.forEach(l => l.remove());
+
+            DATA.forEach((task, index) => {
+                task.deps.forEach(depId => {
+                    const sourceTask = DATA.find(t => t.id === depId);
+                    if (!sourceTask) return;
+
+                    const sourceIdx = DATA.indexOf(sourceTask);
+                    const targetIdx = index;
+
+                    // Source end point (right side of bar)
+                    const x1 = (sourceTask.end + 1) * DAY_WIDTH;
+                    const y1 = sourceIdx * ROW_HEIGHT + (ROW_HEIGHT / 2);
+
+                    // Target start point (left side of bar)
+                    const x2 = task.start * DAY_WIDTH;
+                    const y2 = targetIdx * ROW_HEIGHT + (ROW_HEIGHT / 2);
+
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    // Draw a stepped line for better visibility
+                    const midX = x1 + (x2 - x1) / 2;
+                    const d = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+                    
+                    path.setAttribute('d', d);
+                    path.setAttribute('class', 'dep-line');
+                    svg.appendChild(path);
+                });
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

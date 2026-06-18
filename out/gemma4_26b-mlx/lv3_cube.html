@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Cube Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            background-color: #111;
+            width: 900px;
+            height: 600px;
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            font-family: sans-serif;
+            user-select: none;
+        }
+        #ui-content {
+            display: block;
+        }
+        .hidden {
+            display: none !important;
+        }
+        button {
+            cursor: pointer;
+            background: #444;
+            color: white;
+            border: 1px solid #666;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<div id="ui-container">
+    <button id="toggleBtn">Hide UI</button>
+    <div id="ui-content">
+        <div style="margin-top: 10px;">
+            Speed: <input type="range" id="speedSlider" min="0" max="0.1" step="0.001" value="0.02">
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const speedSlider = document.getElementById('speedSlider');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const uiContent = document.getElementById('ui-content');
+
+    // UI Toggle Logic
+    toggleBtn.onclick = () => {
+        if (uiContent.classList.contains('hidden')) {
+            uiContent.classList.remove('hidden');
+            toggleBtn.textContent = 'Hide UI';
+        } else {
+            uiContent.classList.add('hidden');
+            toggleBtn.textContent = 'Show UI';
+        }
+    };
+
+    // 3D Data Definition
+    const vertices = [
+        [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], // 0, 1, 2, 3
+        [-1, -1, 1],  [1, -1, 1],  [1, 1, 1],  [-1, 1, 1]   // 4, 5, 6, 7
+    ];
+
+    const faces = [
+        { indices: [4, 5, 6, 7], color: '#FF0000' }, // Front (z=1)
+        { indices: [0, 3, 2, 1], color: '#0000FF' }, // Back (z=-1)
+        { indices: [3, 7, 6, 2], color: '#00FF00' }, // Top (y=1)
+        { indices: [0, 1, 5, 4], color: '#FFFF00' }, // Bottom (y=-1)
+        { indices: [0, 4, 7, 3], color: '#00FFFF' }, // Left (x=-1)
+        { indices: [1, 2, 6, 5], color: '#FF00FF' }  // Right (x=1)
+    ];
+
+    let rx = 0, ry = 0, rz = 0;
+
+    function rotate(v, ax, ay, az) {
+        let x = v[0], y = v[1], z = v[2];
+
+        // Rotate X
+        let cosX = Math.cos(ax), sinX = Math.sin(ax);
+        let y1 = y * cosX - z * sinX;
+        let z1 = y * sinX + z * cosX;
+
+        // Rotate Y
+        let cosY = Math.cos(ay), sinY = Math.sin(ay);
+        let x2 = x * cosY + z1 * sinY;
+        let z2 = -x * sinY + z1 * cosY;
+
+        // Rotate Z
+        let cosZ = Math.cos(az), sinZ = Math.sin(az);
+        let x3 = x2 * cosZ - y1 * sinZ;
+        let y3 = x2 * sinZ + y1 * cosZ;
+
+        return [x3, y3, z2]; // Note: using z2 from Y rotation for simplicity in this chain
+    }
+
+    // Corrected Rotation Chain to ensure all axes are applied correctly
+    function applyRotation(v, ax, ay, az) {
+        let x = v[0], y = v[1], z = v[2];
+
+        // Rx
+        let cy = Math.cos(ax), sy = Math.sin(ax);
+        let ny = y * cy - z * sy;
+        let nz = y * sy + z * cy;
+        y = ny; z = nz;
+
+        // Ry
+        let cx = Math.cos(ay), sx = Math.sin(ay);
+        let nx = x * cx + z * sx;
+        nz = -x * sx + z * cx;
+        x = nx; z = nz;
+
+        // Rz
+        cx = Math.cos(az); sx = Math.sin(az);
+        nx = x * cx - y * sx;
+        ny = x * sx + y * cx;
+        x = nx; y = ny;
+
+        return [x, y, z];
+    }
+
+    function update() {
+        const speed = parseFloat(speedSlider.value);
+        rx += speed;
+        ry += speed * 0.7;
+        rz += speed * 0.5;
+    }
+
+    function draw() {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const projectedFaces = [];
+        const dist = 5; // Camera distance
+        const scale = 300;
+
+        for (let f = 0; f < faces.length; f++) {
+            const face = faces[f];
+            const transformedVertices = face.indices.map(idx => {
+                return applyRotation(vertices[idx], rx, ry, rz);
+            });
+
+            // Calculate average Z for Painter's Algorithm (depth sorting)
+            let avgZ = 0;
+            transformedVertices.forEach(v => avgZ += v[2]);
+            avgZ /= face.indices.length;
+
+            // Project to 2D
+            const projectedPoints = transformedVertices.map(v => {
+                const factor = scale / (v[2] + dist);
+                return {
+                    x: v[0] * factor + canvas.width / 2,
+                    y: v[1] * factor + canvas.height / 2
+                };
+            });
+
+            projectedFaces.push({
+                points: projectedPoints,
+                z: avgZ,
+                color: face.color
+            });
+        }
+
+        // Painter's Algorithm: Sort by Z (ascending) so furthest faces are drawn first
+        projectedFaces.sort((a, b) => a.z - b.z);
+
+        // Draw sorted faces
+        projectedFaces.forEach(face => {
+            ctx.beginPath();
+            ctx.moveTo(face.points[0].x, face.points[0].y);
+            for (let i = 1; i < face.points.length; i++) {
+                ctx.lineTo(face.points[i].x, face.points[i].y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = face.color;
+            ctx.fill();
+        });
+    }
+
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    loop();
+</script>
+</body>
+</html>

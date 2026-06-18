@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Cube Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; }
+        canvas { display: block; width: 900px; height: 600px; border: 1px solid #333; }
+        #ui-overlay {
+            position: fixed; bottom: 0; left: 0; right: 0; padding: 5px; background: rgba(0, 0, 0, 0.7); color: white; font-family: monospace; z-index: 10;
+        }
+        #ui-overlay button { margin-right: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <canvas id="cubeCanvas" width="900" height="600"></canvas>
+    <div id="ui-overlay">
+        <button id="toggleButton">Toggle UI (Speed)</button>
+        <span id="speedDisplay">Rotation Speed: 1.0</span>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const CANVAS_WIDTH = 900;
+        const CANVAS_HEIGHT = 600;
+        const BACKGROUND_COLOR = "#111";
+        const CUBE_SIZE = 1.5; // Half size of the cube along axes
+        let rotationSpeed = 1.0; // Adjustable parameter
+
+        // --- Canvas Setup ---
+        const canvas = document.getElementById('cubeCanvas');
+        const ctx = canvas.getContext('2d');
+        let animationFrameId = null;
+let isUIVisible = false;
+
+// --- 3D Math Implementation (Handwritten) ---
+
+/**
+ * Vector class for 3D points/vectors
+ */ class Vector3 {
+    constructor(x, y, z) {
+        this.x = x || 0;
+        this.y = y || 0;
+        this.z = z || 0;
+    }
+
+    add(v) {
+        return new Vector3(this.x + v.x, this.y + v.y, this.z + v.z);
+    }
+
+    subtract(v) {
+        return new Vector3(this.x - v.x, this.y - v.y, this.z - v.z);
+    }
+
+    scale(s) {
+        return new Vector3(this.x * s, this.y * s, this.z * s);
+    }
+
+    normalize() {
+        const length = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+        if (length === 0) return new Vector3(0, 0, 0);
+        return new Vector3(this.x / length, this.y / length, this.z / length);
+    }
+
+    dot(v) {
+        return this.x * v.x + this.y * v.y + this.z * v.z;
+    }
+
+    // Helper for drawing (converting to 2D screen coordinates)
+    toScreen(scaleFactor) {
+        const x = this.x * scaleFactor;
+        const y = this.y * scaleFactor;
+        // Perspective projection: Divide by Z, ensuring Z is not zero or negative
+        const projectedX = (this.z !== 0 && this.z > 0) ? x / this.z : x;
+        const projectedY = (this.z !== 0 && this.z > 0) ? y / this.z : y;
+        return { x: projectedX, y: projectedY };
+    }
+}
+
+/**
+ * Rotation Matrix implementation (Rotation around Y-axis for simplicity)
+ */ function rotateY(angleRadians) {
+    const cosA = Math.cos(angleRadians);
+    const sinA = Math.sin(angleRadians);
+    return {
+        x: -sinA, cos: cosA, y: sinA, z: 0 // Simplified rotation matrix structure for this simulation
+    };
+}
+
+/**
+ * Perspective Projection function (3D -> 2D)
+ */ function projectPoint(v3d, scaleFactor) {
+    // Simple perspective projection based on Z depth
+    const projectedX = (v3d.z !== 0 && v3d.z > 0) ? v3d.x / v3d.z * CANVAS_WIDTH : v3d.x;
+    const projectedY = (v3d.z !== 0 && v3d.z > 0) ? v3d.y / v3d.z * CANVAS_HEIGHT : v3d.y;
+
+    // Center the projection
+    return {
+        x: projectedX + CANVAS_WIDTH / 2,
+        y: projectedY + CANVAS_HEIGHT / 2
+    };
+}
+
+
+// --- Cube Geometry Definition ---
+const CUBE_VERTICES = [
+    new Vector3(-CUBE_SIZE, -CUBE_SIZE, -CUBE_SIZE), // 0
+    new Vector3( CUBE_SIZE, -CUBE_SIZE, -CUBE_SIZE), // 1
+    new Vector3( CUBE_SIZE,  CUBE_SIZE, -CUBE_SIZE), // 2
+    new Vector3(-CUBE_SIZE,  CUBE_SIZE, -CUBE_SIZE), // 3
+    new Vector3(-CUBE_SIZE, -CUBE_SIZE,  CUBE_SIZE), // 4
+    new Vector3( CUBE_SIZE, -CUBE_SIZE,  CUBE_SIZE), // 5
+    new Vector3( CUBE_SIZE,  CUBE_SIZE,  CUBE_SIZE), // 6
+    new Vector3(-CUBE_SIZE,  CUBE_SIZE,  CUBE_SIZE)  // 7
+];
+
+const CUBE_COLORS = [
+    '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FFA500', '#FF00FF'
+];
+
+// --- Drawing Logic (Painter's Algorithm) ---
+
+/**
+ * Calculates the Z depth for a given vertex. We use the Z coordinate directly.
+ */ function getDepth(v) {
+    return v.z;
+}
+
+/**
+ * Draws a single face (polygon) onto the canvas.
+ * @param {Vector3[]} vertices - The 3D coordinates of the face vertices.
+ * @param {string} color - Face color.
+ * @param {number} scaleFactor - Scaling factor for projection.
+ */ function drawFace(vertices, color, scaleFactor) {
+    if (vertices.length < 3) return;
+
+    // 1. Project vertices to 2D screen space
+    const projectedPoints = vertices.map(v => projectPoint(v, scaleFactor));
+
+    ctx.beginPath();
+    ctx.moveTo(projectedPoints[0].x, projectedPoints[0].y);
+
+    for (let i = 1; i < projectedPoints.length; i++) {
+        ctx.lineTo(projectedPoints[i].x, projectedPoints[i].y);
+    }
+    ctx.closePath();
+
+    // 2. Fill the polygon
+    ctx.fillStyle = color;
+    ctx.fill();
+}
+
+
+/**
+ * Main rendering function. Implements Painter's Algorithm (sorting by depth).
+ */ function renderCube() {
+    // Clear canvas
+    ctx.fillStyle = BACKGROUND_COLOR;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    const scaleFactor = Math.min(CANVAS_WIDTH / 2 * 0.8, CANVAS_HEIGHT / 2 * 0.8); // Dynamic scaling based on canvas size
+
+    // 1. Prepare Faces (6 faces)
+    // Define the indices for each face (using standard cube structure)
+    const faces = [
+        // Front (+Z)
+        [0, 1, 2], [0, 2, 3],
+        // Back (-Z)
+        [4, 5, 6], [4, 6, 7],
+        // Top (+Y)
+        [3, 2, 6], [3, 6, 7],
+        // Bottom (-Y)
+        [0, 4, 5], [0, 5, 1],
+        // Right (+X)
+        [1, 5, 6], [1, 6, 2]
+    ];
+
+    const drawnFaces = [];
+
+    // 2. Calculate Depth and Sort (Painter's Algorithm: Draw farthest first)
+    faces.forEach(faceIndices => {
+        let faceVertices = faceIndices.map(i => CUBE_VERTICES[i]);
+        let maxDepth = -Infinity;
+
+        // Find the maximum Z depth among the vertices of this face
+        faceVertices.forEach(v => {
+            if (getDepth(v) > maxDepth) {
+                maxDepth = getDepth(v);
+            }
+        });
+
+        drawnFaces.push({
+            vertices: faceVertices,
+            depth: maxDepth
+        });
+    });
+
+    // Sort faces by depth (descending order: farthest first)
+    drawnFaces.sort((a, b) => b.depth - a.depth);
+
+
+    // 3. Draw Faces
+    drawnFaces.forEach(faceData => {
+        drawFace(faceData.vertices, CUBE_COLORS[drawnFaces.indexOf(faceData)], scaleFactor);
+    });
+}
+
+// --- Animation Loop ---
+
+function animate() {
+    renderCube();
+    animationFrameId = requestAnimationFrame(animate);
+}
+
+// --- UI Logic ---
+
+function updateSpeedDisplay() {
+    document.getElementById('speedDisplay').textContent = `Rotation Speed: ${rotationSpeed.toFixed(2)}`;
+}
+
+function toggleUI() {
+    isUIVisible = !isUIVisible;
+    const overlay = document.getElementById('ui-overlay');
+    if (isUIVisible) {
+        overlay.style.display = 'block';
+        document.getElementById('toggleButton').textContent = "Hide UI";
+        updateSpeedDisplay();
+    } else {
+        overlay.style.display = 'none';
+        document.getElementById('toggleButton').textContent = "Toggle UI (Speed)";
+    }
+}
+
+// --- Initialization ---
+function init() {
+    // Set initial rotation speed based on parameter
+    rotationSpeed = 1.0;
+    updateSpeedDisplay();
+
+    // Event listeners
+    document.getElementById('toggleButton').addEventListener('click', toggleUI);
+
+    // Start the simulation loop
+    animate();
+}
+
+// Start the application
+init();
+</script>
+</body>
+</html>

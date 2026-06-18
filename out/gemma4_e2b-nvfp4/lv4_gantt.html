@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Lv4: ガントチャート</br>プロジェクト管理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+
+        #gantt-container {
+            position: relative;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            padding: 20px;
+height: 600px; /* Adjust height based on timeline length */
+overflow-x: scroll;
+white-space: nowrap;
+box-sizing: border-box;
+display: flex;
+align-items: center;
+justify-content: flex-start;
+min-width: 1200px; /* Ensure enough space for the timeline */
+touch-action: none; /* Disable default touch actions for better drag handling */
+</style>
+</head>
+<body>
+
+<h1>Lv4: ガントチャート</h1>
+<div id="gantt-container">
+    <!-- Tasks will be rendered here -->
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('gantt-container');
+    const timelineStart = new Date('2026-06-01T00:00:00');
+    const timelineEnd = new Date('2026-06-21T00:00:00');
+
+    // Task Data Definition (Start/End dates are in YYY-MM-DD format)
+    const tasksData = [
+        { id: 'T1', name: '要件定義', start: new Date('2026-06-01'), end: new Date('2026-06-04'), dependencies: [] },
+        { id: 'T2', name: '基本設計', start: new Date('2026-06-05'), end: new Date('2026-06-09'), dependencies: ['T1'] },
+        { id: 'T3', name: 'UI設計', start: new Date('2026-06-05'), end: new Date('2026-06-08'), dependencies: ['T1'] },
+        { id: 'T4', name: '実装', start: new Date('2026-06-10'), end: new Date('2026-06-17'), dependencies: ['T2', 'T3'] },
+        { id: 'T5', name: 'テスト', start: new Date('2026-06-16'), end: new Date('2026-06-20'), dependencies: ['T4'] },
+        { id: 'T6', name: 'リリース準備', start: new Date('2026-06-19'), end: new Date('2026-06-21'), dependencies: ['T5'] }
+    ];
+
+    let activeTask = null;
+    let dragStartPos = { x: 0, y: 0 };
+    let isDragging = false;
+
+    // --- Utility Functions ---
+
+    /** Converts a Date object to a standardized string (YYYY-MM-DD) */
+    function dateToString(date) {
+        return date.toISOString().slice(0, 10);
+    }
+
+    /** Calculates the pixel position for a given date relative to the container width */
+    function dateToPixelPosition(date) {
+        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+        const start = new Date('2026-06-01'); // Reference start
+        const diffTime = Math.abs(date - start);
+        const diffDays = Math.ceil(diffTime / MS_PER_DAY);
+        return diffDays * 50; // Each day gets 50px width
+    }
+
+    // --- Rendering Functions ---
+
+    function renderTimeline() {
+        container.innerHTML = '';
+        const totalWidth = timelineEnd.getTime() - timelineStart.getTime();
+        const containerWidth = container.clientWidth;
+
+        tasksData.forEach(task => {
+            const startPos = dateToPixelPosition(task.start);
+            const duration = (task.end.getTime() - task.start.getTime()) / (1000 * 60 * 60 * 24);
+            const barWidth = duration * 50; // Width in pixels
+
+            const taskElement = document.createElement('div');
+            taskElement.className = 'gantt-task';
+            taskElement.id = `task-${task.id}`;
+            taskElement.style.position = 'absolute';
+            taskElement.style.left = `${startPos}px`;
+            taskElement.style.width = `${barWidth}px`;
+            taskElement.style.height = '30px';
+            taskElement.style.backgroundColor = task.id === 'T1' ? '#e6ffe6' : (task.id === 'T4' ? '#ffcc99' : '#4CAF50');
+            taskElement.style.borderLeft = '2px solid #333';
+            taskElement.style.cursor = 'grab';
+            taskElement.setAttribute('draggable', true);
+
+            taskElement.innerHTML = `<span>${task.id}: ${task.name} (${dateToString(task.start)} to ${dateToString(task.end)})</span>`;
+
+            container.appendChild(taskElement);
+        });
+    }
+
+    function renderDependencies() {
+        // Clear existing dependency lines (if any)
+        document.querySelectorAll('.dependency-line').forEach(line => line.remove());
+
+        tasksData.forEach(task => {
+            if (task.dependencies && task.dependencies.length > 0) {
+                task.dependencies.forEach(depId => {
+                    const sourceBar = document.getElementById(`task-${depId}`);
+                    const targetBar = document.getElementById(`task-${task.id}`);
+
+                    if (sourceBar && targetBar) {
+                        // Calculate positions for drawing the line
+                        const sourceRect = sourceBar.getBoundingClientRect();
+                        const targetRect = targetBar.getBoundingClientRect();
+
+                        // Adjust coordinates relative to the container
+                        const sourceX = sourceRect.left + sourceRect.width;
+                        const sourceY = sourceRect.top + sourceRect.height / 2;
+                        const targetX = targetRect.left;
+                        const targetY = targetRect.top + targetRect.height / 2;
+
+                        // Create the dependency line element
+                        const line = document.createElement('div');
+                        line.className = 'dependency-line';
+                        line.style.position = 'absolute';
+                        line.style.width = '2px';
+                        line.style.height = '1px';
+                        line.style.backgroundColor = '#333';
+                        line.style.zIndex = 0;
+
+                        // Simple line drawing (using CSS positioning)
+                        lineContainer.appendChild(line);
+                    }
+                });
+            }
+        });
+    }
+
+
+    // --- Interaction Handlers ---
+
+    function getTaskFromElement(element) {
+        return element ? document.getElementById(element.id) : null;
+    }
+
+    function handleMouseDown(e) {
+        if (e.target.classList.contains('gantt-task')) {
+            const taskEl = e.target;
+            activeTask = getTaskFromElement(taskEl);
+            isDragging = true;
+            dragStartPos = { x: e.clientX, y: e.clientY };
+            taskEl.style.cursor = 'grabbing';
+        }
+    }
+
+    function handleMouseMove(e) {
+        if (!isDragging || !activeTask) return;
+
+        const dx = e.clientX - dragStartPos.x;
+        const dy = e.clientY - dragStartPos.y;
+
+        // Calculate new position based on mouse movement (in pixels)
+        let newLeft = parseFloat(activeTask.element.style.left) + dx;
+
+        // Boundary checks (prevent dragging outside the timeline area)
+        const containerRect = container.getBoundingClientRect();
+        newLeft = Math.max(0, Math.min(newLeft, containerRect.width - activeTask.element.offsetWidth));
+
+        activeTask.element.style.left = `${newLeft}px`;
+    }
+
+    function handleMouseUp(e) {
+        if (isDragging) {
+            isDragging = false;
+            activeTask.element.style.cursor = 'grab';
+        }
+    }
+
+    // --- Initialization ---
+
+    const ganttContainer = document.getElementById('gantt-container');
+
+    function initialize() {
+        renderTimeline();
+        renderDependencies();
+
+        // Attach event listeners to the document for global drag tracking
+        document.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    initialize();
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Cube Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            background-color: #111;
+            border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            color: white;
+            font-family: sans-serif;
+            user-select: none;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        input[type=range] {
+            cursor: pointer;
+        }
+        button {
+            cursor: pointer;
+            padding: 5px 10px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<div id="ui-container">
+    <div class="control-group">
+        <label for="speedRange">Rotation Speed</label>
+        <input type="range" id="speedRange" min="0" max="5" step="0.1" value="1">
+        <button id="toggleBtn">Hide UI</button>
+    </div>
+</div>
+
+<script>
+/**
+ * 3D Math and Rendering Engine
+ * Hand-written implementation of rotation matrices, perspective projection, and Painter's Algorithm.
+ */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const speedInput = document.getElementById('speedRange');
+const toggleBtn = document.getElementById('toggleBtn');
+const uiContainer = document.getElementById('ui-container');
+
+let rotationX = 0;
+let rotationY = 0;
+let rotationZ = 0;
+let speed = parseFloat(speedInput.value);
+
+// Cube definition: 8 vertices
+const vertices = [
+    {x: -1, y: -1, z:  1}, // 0
+    {x:  1, y: -1, z:  1}, // 1
+    {x:  1, y:  1, z:  1}, // 2
+    {x: -1, y:  1, z:  1}, // 3
+    {x: -1, y: -1, z: -1}, // 4
+    {x:  1, y: -1, z: -1}, // 5
+    {x:  1, y:  1, z: -1}, // 6
+    {x: -1, y:  1, z: -1}  // 7
+];
+
+// Cube faces (indices of vertices)
+const faces = [
+    { indices: [0, 1, 2, 3], color: '#ff4444' }, // Front
+    { indices: [4, 5, 6, 7], color: '#44ff44' }, // Back
+    { indices: [3, 2, 6, 7], color: '#4444ff' }, // Top
+    { indices: [0, 1, 5, 4], color: '#ffff44' }, // Bottom
+    { indices: [1, 2, 6, 5], color: '#ff44ff' }, // Right
+    { indices: [0, 3, 7, 4], color: '#44ffff' }  // Left
+];
+
+const FOV = 400;
+const DISTANCE = 5;
+
+function rotate(v, rx, ry, rz) {
+    let {x, y, z} = v;
+
+    // Rotation around X-axis
+    let ty = y * Math.cos(rx) - z * Math.sin(rx);
+    let tz = y * Math.sin(rx) + z * Math.cos(rx);
+    y = ty;
+    z = tz;
+
+    // Rotation around Y-axis
+    let tx = x * Math.cos(ry) + z * Math.sin(ry);
+    tz = -x * Math.sin(ry) + z * Math.cos(ry);
+    x = tx;
+    z = tz;
+
+    // Rotation around Z-axis
+    tx = x * Math.cos(rz) - y * Math.sin(rz);
+    ty = x * Math.sin(rz) + y * Math.cos(rz);
+    x = tx;
+    y = ty;
+
+    return {x, y, z};
+}
+
+function draw() {
+    // Clear canvas
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Update rotation angles
+    rotationX += speed * 0.01;
+    rotationY += speed * 0.01;
+    rotationZ += speed * 0.005;
+
+    // Transform vertices
+    const transformedVertices = vertices.map(v => rotate(v, rotationX, rotationY, rotationZ));
+
+    // Prepare faces for Painter's Algorithm
+    const renderedFaces = faces.map(face => {
+        const projectedPoints = face.indices.map(idx => {
+            const v = transformedVertices[idx];
+            // Perspective projection: x' = x * f / (z + d)
+            const factor = FOV / (v.z + DISTANCE);
+            return {
+                x: v.x * factor + centerX,
+                y: v.y * factor + centerY,
+                z: v.z // Keep original Z for depth sorting
+            };
+        });
+
+        // Calculate average Z-depth of the face
+        const avgZ = projectedPoints.reduce((sum, p) => sum + p.z, 0) / projectedPoints.length;
+
+        return {
+            points: projectedPoints,
+            color: face.color,
+            avgZ: avgZ
+        };
+    });
+
+    // Painter's Algorithm: Sort faces by average Z (back to front)
+    // In our coordinate system, smaller Z is further away if we consider the camera at z = -DISTANCE
+    // However, since we use v.z + DISTANCE in denominator, 
+    // a larger Z value means it's closer to the viewer.
+    // So we sort by avgZ ascending (smallest Z first).
+    renderedFaces.sort((a, b) => a.avgZ - b.avgZ);
+
+    // Draw faces
+    renderedFaces.forEach(face => {
+        ctx.beginPath();
+        ctx.moveTo(face.points[0].x, face.points[0].y);
+        for (let i = 1; i < face.points.length; i++) {
+            ctx.lineTo(face.points[i].x, face.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = face.color;
+        ctx.fill();
+        // Optional: subtle stroke to see edges clearly
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.stroke();
+    });
+
+    requestAnimationFrame(draw);
+}
+
+// UI Logic
+toggleBtn.addEventListener('click', () => {
+    const isHidden = uiContainer.style.display === 'none';
+    uiContainer.style.display = isHidden ? 'block' : 'none';
+    toggleBtn.textContent = isHidden ? 'Hide UI' : 'Show UI';
+});
+
+speedInput.addEventListener('input', (e) => {
+    speed = parseFloat(e.target.value);
+});
+
+// Start loop
+requestAnimationFrame(draw);
+
+</script>
+</body>
+</html>

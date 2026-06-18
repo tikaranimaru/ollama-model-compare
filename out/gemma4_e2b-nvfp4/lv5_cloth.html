@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Verlet Cloth Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; }
+        canvas { display: block; width: 900px; height: 600px; border: 1px solid #333; }
+        #ui-overlay {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(0, 0, 0, 0.7); color: white; padding: 5px;
+            font-family: monospace; font-size: 12px; z-index: 10;
+        }
+        #ui-controls { display: none; }
+#ifdef DEBUG
+    /* Optional debug styling */
+</style>
+</head>
+<body>
+<canvas id="clothCanvas"></canvas>
+<div id="ui-overlay">
+    <div id="ui-controls">
+        <label for="windSlider">Wind Strength:</label>
+        <input type="range" id="windSlider" min="0" max="100" value="10">
+        <button id="toggleUI">Toggle UI</button>
+    </div>
+</div>
+
+<script>
+    // --- Configuration ---
+    const CANVAS_WIDTH = 900;
+    const CANVAS_HEIGHT = 600;
+    const GRID_COLS = 30; // Width
+    const GRID_ROWS = 20; // Height
+    const POINT_SPACING_X = CANVAS_WIDTH / GRID_COLS;
+    const POINT_SPACING_Y = CANVAS_HEIGHT / GRID_ROWS;
+    const DT = 1.0; // Time step for integration
+    const GRAVITY = 9.8 * 50; // Adjusted gravity for visual effect
+    const CONSTRAINT_ITERATIONS = 5; // Number of constraint relaxation passes
+
+    // --- Simulation State ---
+    let canvas, ctx;
+    let points = [];
+    let isDragging = false;
+    let draggedPointIndex = -1;
+    let windStrength = 10;
+    let uiVisible = false;
+
+    class Point {
+        constructor(x, y, index) {
+            this.x = x;
+            this.y = y;
+            this.prevX = x; // Previous position for Verlet
+            this.prevY = y;
+            this.index = index;
+            this.fixed = false; // Top row is fixed
+        }
+
+        update(dt) {
+            if (this.fixed) return;
+
+            // 1. Verlet Integration Step
+            const dx = this.x - this.prevX;
+            const dy = this.y - this.prevY;
+
+            // Apply gravity acceleration
+            const newX = this.x + dx + (0 * dt * dt); // Acceleration is implicitly handled by the constraint system later, but we apply basic physics here for stability check
+            const newY = this.y + dy + (GRAVITY * dt * dt);
+
+            this.prevX = this.x;
+            this.prevY = this.y;
+            this.x = newX;
+            this.y = newY;
+        }
+    }
+
+    // --- Initialization Functions ---
+    function initializeSimulation() {
+        canvas = document.getElementById('clothCanvas');
+        ctx = canvas.getContext('2d');
+
+        points = [];
+        for (let j = 0; j < GRID_ROWS; j++) {
+            const row = [];
+            for (let i = 0; i < GRID_COLS; i++) {
+                const x = i * POINT_SPACING_X;
+                const y = j * POINT_SPACING_Y;
+                const p = new Point(x, y, j);
+                if (j === 0) {
+                    p.fixed = true; // Top row fixed
+                }
+                row.push(p);
+            }
+            points.push(row);
+        }
+    }
+
+    // --- Physics Functions ---
+
+    function applyWind() {
+        const windFactor = windStrength / 100.0;
+        for (let j = 1; j < GRID_ROWS; j++) { // Don't affect the fixed top row
+            for (let i = 0; i < GRID_COLS; i++) {
+                if (!points[j][i].fixed) {
+                    // Apply horizontal force proportional to wind strength
+                    points[j][i].x += windFactor * 5; // Small displacement per frame
+                }
+            }
+        }
+    }
+
+    function applyDistanceConstraints() {
+        for (let j = 0; j < GRID_ROWS; j++) {
+            for (let i = 0; i < GRID_COLS; i++) {
+                const p1 = points[j][i];
+
+                // Check right neighbor
+                if (i < GRID_COLS - 1) {
+                    const p2 = points[j][i + 1];
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const distSq = dx * dx + dy * dy;
+                    const targetDist = POINT_SPACING_X;
+
+                    if (distSq !== targetDist * targetDist) {
+                        const dist = Math.sqrt(distSq);
+                        const diff = dist - targetDist;
+                        const correctionFactor = 0.5; // How much to move each point
+                        const correctionX = (dx / dist) * diff * correctionFactor;
+                        const correctionY = (dy / dist) * diff * correctionFactor;
+
+                        p1.x -= correctionX;
+                        p1.y -= correctionY;
+                    }
+                }
+
+                // Check down neighbor
+                if (j < GRID_ROWS - 1) {
+                    const p2 = points[j + 1][i];
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const distSq = dx * dx + dy * dy;
+                    const targetDist = POINT_SPACING_Y;
+
+                    if (distSq !== targetDist * targetDist) {
+                        const dist = Math.sqrt(distSq);
+                        const diff = dist - targetDist;
+                        const correctionFactor = 0.5;
+                        const correctionX = (dx / dist) * diff * correctionFactor;
+                        const correctionY = (dy / dist) * diff * correctionFactor;
+
+                        p1.x -= correctionX;
+                        p1.y -= correctionY;
+                    }
+                }
+            }
+        }
+    }
+
+    function updateSimulation() {
+        // 1. Apply external forces (Wind)
+        applyWind();
+
+        // 2. Verlet Integration
+        for (let j = 0; j < GRID_ROWS; j++) {
+            for (let i = 0; i < GRID_COLS; i++) {
+                points[j][i].update(DT);
+            }
+        }
+
+        // 3. Distance Constraints (Relaxation) - Repeat multiple times for stability
+        for (let k = 0; k < CONSTRAINT_ITERATIONS; k++) {
+            applyDistanceConstraints();
+        }
+    }
+
+    // --- Drawing Functions ---
+
+    function draw() {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        ctx.strokeStyle = '#FFF'; // White lines for visibility
+
+        for (let j = 0; j < GRID_ROWS; j++) {
+            for (let i = 0; i < GRID_COLS; i++) {
+                const p1 = points[j][i];
+
+                // Draw horizontal link (to the right)
+                if (i < GRID_COLS - 1) {
+                    const p2 = points[j][i + 1];
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+
+                // Draw vertical link (downwards)
+                if (j < GRID_ROWS - 1) {
+                    const p2 = points[j + 1][i];
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    // --- Interaction Handling ---
+
+    function checkMouseInteraction(mouseX, mouseY) {
+        for (let j = 0; j < GRID_ROWS; j++) {
+            for (let i = 0; i < GRID_COLS; i++) {
+                const p = points[j][i];
+                // Simple distance check for dragging
+                const dx = p.x - mouseX;
+                const dy = p.y - mouseY;
+                if (dx * dx + dy * dy < 100) { // Drag radius squared
+                    isDragging = true;
+                    draggedPointIndex = j;
+                    return;
+                }
+            }
+        }
+        isDragging = false;
+    }
+
+    function handleMouseDrag(event) {
+        if (!isDragging) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        // Check if the drag is still within a reasonable range (optional, but good practice)
+        if (mouseY > CANVAS_HEIGHT) {
+            isDragging = false;
+            draggedPointIndex = -1;
+            return;
+        }
+
+        const p = points[draggedPointIndex];
+        // Move the point directly based on mouse position
+        p.x = mouseX;
+        p.y = mouseY;
+    }
+
+    // --- Main Loop ---
+
+    function loop() {
+        updateSimulation();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    // --- UI Setup ---
+    function setupUI() {
+        const uiOverlay = document.getElementById('ui-overlay');
+        const windSlider = document.getElementById('windSlider');
+        const toggleButton = document.getElementById('toggleUI');
+
+        toggleButton.onclick = () => {
+            uiVisible = !uiVisible;
+            document.getElementById('ui-controls').style.display = uiVisible ? 'block' : 'none';
+            toggleButton.textContent = uiVisible ? 'Hide UI' : 'Toggle UI';
+        };
+
+        windSlider.oninput = (e) => {
+            windStrength = parseInt(e.target.value);
+        };
+    }
+
+
+    // --- Event Listeners ---
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        checkMouseInteraction(mouseX, mouseY);
+    });
+
+    canvas.addEventListener('mousemove', handleMouseDrag);
+
+
+    // --- Start ---
+    function start() {
+        initializeSimulation();
+        setupUI();
+        loop();
+    }
+
+    window.onload = start;
+</script>
+
+</body>
+</html>

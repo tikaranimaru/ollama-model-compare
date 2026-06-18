@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; }
+        canvas { display: block; background: #111; margin: 0 auto; cursor: crosshair; }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            user-select: none;
+            z-index: 10;
+        }
+        #ui-header {
+            cursor: pointer;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 150px;
+        }
+        #ui-body {
+            display: block;
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        label { font-size: 12px; display: block; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="ui-container">
+    <div id="ui-header">
+        <span>Settings</span>
+        <span id="toggle-btn">▼</span>
+    </div>
+    <div id="ui-body">
+        <div class="control-group">
+            <label for="wind-slider">Wind Strength</label>
+            <input type="range" id="wind-slider" min="-2" max="2" step="0.1" value="0">
+        </div>
+    </div>
+</div>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const windSlider = document.getElementById('wind-slider');
+    const uiBody = document.getElementById('ui-body');
+    const toggleBtn = document.getElementById('toggle-btn');
+
+    // Simulation Constants
+    const COLS = 30;
+    const ROWS = 20;
+    const SPACING = 20;
+    const ITERATIONS = 5;
+    const GRAVITY = 0.2;
+    const FRICTION = 0.99;
+
+    let windStrength = 0;
+    let mouseX = 0, mouseY = 0, isMouseDown = false;
+    let draggedPoint = null;
+
+    class Point {
+        constructor(x, y, pinned = false) {
+            this.x = x;
+            this.y = y;
+            this.oldX = x;
+            this.oldY = y;
+            this.pinned = pinned;
+        }
+
+        update() {
+            if (this.pinned) return;
+
+            let vx = (this.x - this.oldX) * FRICTION;
+            let vy = (this.y - this.oldY) * FRICTION;
+
+            this.oldX = this.x;
+            this.oldY = this.y;
+
+            // Wind force: simple horizontal oscillation + slider value
+            const wind = windStrength + Math.sin(Date.now() * 0.002 + this.x * 0.01) * 0.2;
+
+            this.x += vx + wind;
+            this.y += vy + GRAVITY;
+        }
+    }
+
+    class Constraint {
+        constructor(p1, p2) {
+            this.p1 = p1;
+            this.p2 = p2;
+            this.dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        }
+
+        solve() {
+            const dx = this.p2.x - this.p1.x;
+            const dy = this.p2.y - this.p1.y;
+            const currentDist = Math.hypot(dx, dy);
+            const diff = (this.dist - currentDist) / currentDist;
+
+            const offsetX = dx * diff * 0.5;
+            const offsetY = dy * diff * 0.5;
+
+            if (!this.p1.pinned) {
+                this.p1.x -= offsetX;
+                this.p1.y -= offsetY;
+            }
+            if (!this.p2.pinned) {
+                this.p2.x += offsetX;
+                this.p2.y += offsetY;
+            }
+        }
+    }
+
+    const points = [];
+    const constraints = [];
+
+    // Initialize Grid
+    const startX = (canvas.width - (COLS - 1) * SPACING) / 2;
+    const startY = 50;
+
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            const pinned = (y === 0); // Top row fixed
+            points.push(new Point(startX + x * SPACING, startY + y * SPACING, pinned));
+        }
+    }
+
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (x < COLS - 1) {
+                constraints.push(new Constraint(points[y * COLS + x], points[y * COLS + x + 1]));
+            }
+            if (y < ROWS - 1) {
+                constraints.push(new Constraint(points[y * COLS + x], points[(y + 1) * COLS + x]));
+            }
+        }
+    }
+
+    // Interaction
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+        isMouseDown = true;
+
+        let minDist = Infinity;
+        points.forEach(p => {
+            const d = Math.hypot(p.x - mouseX, p.y - mouseY);
+            if (d < minDist) {
+                minDist = d;
+                draggedPoint = p;
+            }
+        });
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+        if (draggedPoint && isMouseDown) {
+            draggedPoint.x = mouseX;
+            draggedPoint.y = mouseY;
+            draggedPoint.oldX = mouseX;
+            draggedPoint.oldY = mouseY;
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isMouseDown = false;
+        draggedPoint = null;
+    });
+
+    // UI Toggle
+    toggleBtn.addEventListener('click', () => {
+        const isHidden = uiBody.style.display === 'none';
+        uiBody.style.display = isHidden ? 'block' : 'none';
+        toggleBtn.textContent = isHidden ? '▼' : '▲';
+    });
+
+    function loop() {
+        windStrength = parseFloat(windSlider.value);
+
+        // Physics Update
+        points.forEach(p => p.update());
+
+        for (let i = 0; i < ITERATIONS; i++) {
+            constraints.forEach(c => c.solve());
+        }
+
+        // Render
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        constraints.forEach(c => {
+            ctx.moveTo(c.p1.x, c.p1.y);
+            ctx.lineTo(c.p2.x, c.p2.y);
+        });
+        ctx.stroke();
+
+        requestAnimationFrame(loop);
+    }
+
+    loop();
+</script>
+</body>
+</html>

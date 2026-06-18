@@ -1,0 +1,69 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
+
+<title>gemma4 コーディング比較</title>
+<style>
+ body{margin:0;background:#1b1b1f;color:#ddd;font-family:system-ui,sans-serif}
+ h1{font-size:18px;padding:12px 16px;margin:0;background:#111}
+ h2{font-size:16px;margin:24px 16px 8px;border-left:4px solid #5b8;padding-left:8px}
+ .grid{display:flex;flex-wrap:wrap;gap:14px;padding:0 16px}
+ a.panel{text-decoration:none;color:inherit;display:block}
+ .panel{background:#26262b;border:1px solid #333;border-radius:6px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+ a.panel:hover{border-color:#5b8;box-shadow:0 0 0 2px rgba(90,187,136,.4)}
+ .cap{font-size:12px;padding:5px 8px;display:flex;justify-content:space-between;gap:8px;white-space:nowrap}
+ .cap b{color:#7dd}
+ .cap .m{color:#999}
+ .frame{width:450px;height:300px;overflow:hidden;position:relative;background:#111}
+ .frame iframe{width:900px;height:600px;border:0;transform:scale(0.5);transform-origin:top left}
+ .ov{position:absolute;inset:0;z-index:2;cursor:pointer;display:flex;align-items:center;justify-content:center}
+ .ov span{opacity:0;color:#fff;background:rgba(20,40,30,.72);padding:6px 12px;border-radius:20px;font-size:13px;transition:opacity .15s}
+ a.panel:hover .ov span{opacity:1}
+ .empty{width:450px;height:300px;display:flex;align-items:center;justify-content:center;color:#666;font-size:13px;background:#222}
+</style></head><body>
+<h1>gemma4 各モデル × コーディング課題 比較（iframeは900×600を0.5倍表示）</h1>
+
+<h2>Lv1 ランディングページ</h2><div class="grid">
+<a class="panel" href="out/gemma4_e2b-nvfp4/lv1_landing.html"><div class="cap"><b>gemma4:e2b-nvfp4</b><span class="m">41.1t/s · 119.3s ⤢</span></div><div class="frame"><iframe src="out/gemma4_e2b-nvfp4/lv1_landing.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_12b-mxfp8/lv1_landing.html"><div class="cap"><b>gemma4:12b-mxfp8</b><span class="m">19.0t/s · 297.6s ⤢</span></div><div class="frame"><iframe src="out/gemma4_12b-mxfp8/lv1_landing.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mlx/lv1_landing.html"><div class="cap"><b>gemma4:26b-mlx</b><span class="m">59.1t/s · 91.9s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mlx/lv1_landing.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mxfp8/lv1_landing.html"><div class="cap"><b>gemma4:26b-mxfp8</b><span class="m">44.8t/s · 119.6s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mxfp8/lv1_landing.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mlx/lv1_landing.html"><div class="cap"><b>gemma4:31b-mlx</b><span class="m">9.8t/s · 541.6s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mlx/lv1_landing.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b/lv1_landing.html"><div class="cap"><b>gemma4:31b</b><span class="m">9.0t/s · 571.3s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b/lv1_landing.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mxfp8/lv1_landing.html"><div class="cap"><b>gemma4:31b-mxfp8</b><span class="m">7.8t/s · 719.9s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mxfp8/lv1_landing.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+</div>
+<h2>Lv2 スピログラフ(媒介変数)</h2><div class="grid">
+<a class="panel" href="out/gemma4_e2b-nvfp4/lv2_spiro.html"><div class="cap"><b>gemma4:e2b-nvfp4</b><span class="m">66.4t/s · 36.9s ⤢</span></div><div class="frame"><iframe src="out/gemma4_e2b-nvfp4/lv2_spiro.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_12b-mxfp8/lv2_spiro.html"><div class="cap"><b>gemma4:12b-mxfp8</b><span class="m">17.1t/s · 192.9s ⤢</span></div><div class="frame"><iframe src="out/gemma4_12b-mxfp8/lv2_spiro.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mlx/lv2_spiro.html"><div class="cap"><b>gemma4:26b-mlx</b><span class="m">41.3t/s · 234.0s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mlx/lv2_spiro.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mxfp8/lv2_spiro.html"><div class="cap"><b>gemma4:26b-mxfp8</b><span class="m">46.2t/s · 203.2s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mxfp8/lv2_spiro.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mlx/lv2_spiro.html"><div class="cap"><b>gemma4:31b-mlx</b><span class="m">8.7t/s · 389.9s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mlx/lv2_spiro.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b/lv2_spiro.html"><div class="cap"><b>gemma4:31b</b><span class="m">10.0t/s · 355.5s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b/lv2_spiro.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mxfp8/lv2_spiro.html"><div class="cap"><b>gemma4:31b-mxfp8</b><span class="m">8.1t/s · 508.6s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mxfp8/lv2_spiro.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+</div>
+<h2>Lv3 立方体(3D陰面処理)</h2><div class="grid">
+<a class="panel" href="out/gemma4_e2b-nvfp4/lv3_cube.html"><div class="cap"><b>gemma4:e2b-nvfp4</b><span class="m">65.7t/s · 51.7s ⤢</span></div><div class="frame"><iframe src="out/gemma4_e2b-nvfp4/lv3_cube.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_12b-mxfp8/lv3_cube.html"><div class="cap"><b>gemma4:12b-mxfp8</b><span class="m">20.3t/s · 200.2s ⤢</span></div><div class="frame"><iframe src="out/gemma4_12b-mxfp8/lv3_cube.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mlx/lv3_cube.html"><div class="cap"><b>gemma4:26b-mlx</b><span class="m">56.5t/s · 167.0s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mlx/lv3_cube.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mxfp8/lv3_cube.html"><div class="cap"><b>gemma4:26b-mxfp8</b><span class="m">49.0t/s · 90.1s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mxfp8/lv3_cube.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mlx/lv3_cube.html"><div class="cap"><b>gemma4:31b-mlx</b><span class="m">8.2t/s · 385.1s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mlx/lv3_cube.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b/lv3_cube.html"><div class="cap"><b>gemma4:31b</b><span class="m">9.0t/s · 305.8s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b/lv3_cube.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mxfp8/lv3_cube.html"><div class="cap"><b>gemma4:31b-mxfp8</b><span class="m">7.1t/s · 389.9s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mxfp8/lv3_cube.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+</div>
+<h2>Lv4 ガントチャート</h2><div class="grid">
+<a class="panel" href="out/gemma4_e2b-nvfp4/lv4_gantt.html"><div class="cap"><b>gemma4:e2b-nvfp4</b><span class="m">63.4t/s · 45.6s ⤢</span></div><div class="frame"><iframe src="out/gemma4_e2b-nvfp4/lv4_gantt.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_12b-mxfp8/lv4_gantt.html"><div class="cap"><b>gemma4:12b-mxfp8</b><span class="m">19.6t/s · 276.0s ⤢</span></div><div class="frame"><iframe src="out/gemma4_12b-mxfp8/lv4_gantt.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mlx/lv4_gantt.html"><div class="cap"><b>gemma4:26b-mlx</b><span class="m">57.4t/s · 111.6s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mlx/lv4_gantt.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mxfp8/lv4_gantt.html"><div class="cap"><b>gemma4:26b-mxfp8</b><span class="m">47.2t/s · 112.0s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mxfp8/lv4_gantt.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mlx/lv4_gantt.html"><div class="cap"><b>gemma4:31b-mlx</b><span class="m">8.8t/s · 513.7s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mlx/lv4_gantt.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b/lv4_gantt.html"><div class="cap"><b>gemma4:31b</b><span class="m">8.7t/s · 537.7s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b/lv4_gantt.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mxfp8/lv4_gantt.html"><div class="cap"><b>gemma4:31b-mxfp8</b><span class="m">7.5t/s · 575.8s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mxfp8/lv4_gantt.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+</div>
+<h2>Lv5 布シミュ(Verlet)</h2><div class="grid">
+<a class="panel" href="out/gemma4_e2b-nvfp4/lv5_cloth.html"><div class="cap"><b>gemma4:e2b-nvfp4</b><span class="m">59.0t/s · 58.5s ⤢</span></div><div class="frame"><iframe src="out/gemma4_e2b-nvfp4/lv5_cloth.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_12b-mxfp8/lv5_cloth.html"><div class="cap"><b>gemma4:12b-mxfp8</b><span class="m">19.6t/s · 227.9s ⤢</span></div><div class="frame"><iframe src="out/gemma4_12b-mxfp8/lv5_cloth.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mlx/lv5_cloth.html"><div class="cap"><b>gemma4:26b-mlx</b><span class="m">55.9t/s · 230.2s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mlx/lv5_cloth.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_26b-mxfp8/lv5_cloth.html"><div class="cap"><b>gemma4:26b-mxfp8</b><span class="m">48.0t/s · 85.8s ⤢</span></div><div class="frame"><iframe src="out/gemma4_26b-mxfp8/lv5_cloth.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mlx/lv5_cloth.html"><div class="cap"><b>gemma4:31b-mlx</b><span class="m">10.6t/s · 252.4s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mlx/lv5_cloth.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b/lv5_cloth.html"><div class="cap"><b>gemma4:31b</b><span class="m">10.1t/s · 260.0s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b/lv5_cloth.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+<a class="panel" href="out/gemma4_31b-mxfp8/lv5_cloth.html"><div class="cap"><b>gemma4:31b-mxfp8</b><span class="m">6.9t/s · 463.7s ⤢</span></div><div class="frame"><iframe src="out/gemma4_31b-mxfp8/lv5_cloth.html" loading="lazy" sandbox="allow-scripts"></iframe><span class="ov"><span>⤢ フル画面で開く</span></span></div></a>
+</div>
+</body></html>

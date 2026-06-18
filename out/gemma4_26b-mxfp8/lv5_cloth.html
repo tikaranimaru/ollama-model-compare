@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Cloth Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            background-color: #111;
+            display: block;
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            font-family: sans-serif;
+        }
+        #ui-panel {
+            background: rgba(50, 50, 50, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            color: white;
+        }
+        #ui-panel.visible {
+            display: flex;
+        }
+        #toggle-btn {
+            background: rgba(80, 80, 80, 0.8);
+            border: none;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        input[type=range] {
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<div id="ui-container">
+    <button id="toggle-btn">Settings</button>
+    <div id="ui-panel">
+        <label style="font-size: 12px;">Wind Strength</label>
+        <input type="range" id="wind-slider" min="0" max="5" step="0.1" value="1">
+    </div>
+</div>
+
+<script>
+(function() {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const uiPanel = document.getElementById('ui-panel');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const windSlider = document.getElementById('wind-slider');
+
+    // Simulation Constants
+    const COLS = 30;
+    const ROWS = 20;
+    const SPACING = 25;
+    const ITERATIONS = 5;
+    const GRAVITY_Y = 0.2;
+    const DT = 1.0;
+
+    let particles = [];
+    let constraints = [];
+    let windStrength = 1.0;
+    let isDragging = false;
+    let dragTarget = null;
+    let mouseX = 0;
+    let mouseY = 0;
+
+    class Particle {
+        constructor(x, y, fixed = false) {
+            this.x = x;
+            this.y = y;
+            this.oldX = x;
+            this.oldY = y;
+            this.fixed = fixed;
+        }
+
+        update(gx, gy) {
+            if (this.fixed) return;
+            const vx = this.x - this.oldX;
+            const vy = this.y - this.oldY;
+            this.oldX = this.x;
+            this.oldY = this.y;
+            this.x += vx + gx * DT * DT;
+            this.y += vy + gy * DT * DT;
+        }
+    }
+
+    class Constraint {
+        constructor(p1, p2) {
+            this.p1 = p1;
+            this.p2 = p2;
+            this.restLength = Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+        }
+
+        solve() {
+            const dx = this.p2.x - this.p1.x;
+            const dy = this.p2.y - this.p1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist === 0) return;
+            const diff = (this.restLength - dist) / dist;
+            const offsetX = dx * diff * 0.5;
+            const offsetY = dy * diff * 0.5;
+
+            if (!this.p1.fixed && !this.p2.fixed) {
+                this.p1.x -= offsetX;
+                this.p1.y -= offsetY;
+                this.p2.x += offsetX;
+                this.p2.y += offsetY;
+            } else if (this.p1.fixed) {
+                this.p2.x += offsetX * 2;
+                this.p2.y += offsetY * 2;
+            } else if (this.p2.fixed) {
+                this.p1.x -= offsetX * 2;
+                this.p1.y -= offsetY * 2;
+            }
+        }
+    }
+
+    function init() {
+        const startX = (canvas.width - (COLS - 1) * SPACING) / 2;
+        const startY = 50;
+
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const x = startX + c * SPACING;
+                const y = startY + r * SPACING;
+                const isFixed = (r === 0);
+                particles.push(new Particle(x, y, isFixed));
+            }
+        }
+
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const idx = r * COLS + c;
+                // Horizontal constraint
+                if (c < COLS - 1) {
+                    constraints.push(new Constraint(particles[idx], particles[idx + 1]));
+                }
+                // Vertical constraint
+                if (r < ROWS - 1) {
+                    constraints.push(new Constraint(particles[idx], particles[idx + COLS]));
+                }
+            }
+        }
+    }
+
+    function update() {
+        const time = Date.now() * 0.002;
+        const windX = Math.sin(time) * windStrength;
+
+        for (let p of particles) {
+            p.update(windX, GRAVITY_Y);
+        }
+
+        for (let i = 0; i < ITERATIONS; i++) {
+            for (let c of constraints) {
+                c.solve();
+            }
+        }
+
+        if (isDragging && dragTarget) {
+            dragTarget.x = mouseX;
+            dragTarget.y = mouseY;
+            dragTarget.oldX = mouseX;
+            dragTarget.oldY = mouseY;
+        }
+    }
+
+    function draw() {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
+        for (let c of constraints) {
+            ctx.moveTo(c.p1.x, c.p1.y);
+            ctx.lineTo(c.p2.x, c.p2.y);
+        }
+        ctx.stroke();
+    }
+
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    // Input Handling
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+        
+        let minDist = Infinity;
+        for (let p of particles) {
+            const d = Math.sqrt((p.x - mouseX)**2 + (p.y - mouseY)**2);
+            if (d < minDist && d < 30) {
+                minDist = d;
+                dragTarget = p;
+                isDragging = true;
+                break;
+            }
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        dragTarget = null;
+    });
+
+    toggleBtn.addEventListener('click', () => {
+        uiPanel.classList.toggle('visible');
+    });
+
+    windSlider.addEventListener('input', (e) => {
+        windStrength = parseFloat(e.target.value);
+    });
+
+    init();
+    loop();
+})();
+</script>
+</body>
+</html>

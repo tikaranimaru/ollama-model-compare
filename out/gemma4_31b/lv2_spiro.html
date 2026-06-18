@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Spirograph - Hypotrochoid</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+            background-color: #111;
+            margin: 0 auto;
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            user-select: none;
+        }
+        #ui-toggle {
+            cursor: pointer;
+            background: #444;
+            color: white;
+            border: 1px solid #666;
+            padding: 5px 10px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        #ui-controls {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #ui-controls.open {
+            display: flex;
+        }
+        select {
+            padding: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<div id="ui-container">
+    <button id="ui-toggle">Settings ⚙️</button>
+    <div id="ui-controls">
+        <label for="preset-select">Select Pattern:</label>
+        <select id="preset-select">
+            <option value="0">Pattern 1 (r=55, d=80)</option>
+            <option value="1">Pattern 2 (r=44, d=110)</option>
+            <option value="2">Pattern 3 (r=88, d=50)</option>
+        </select>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const uiToggle = document.getElementById('ui-toggle');
+    const uiControls = document.getElementById('ui-controls');
+    const presetSelect = document.getElementById('preset-select');
+
+    // Constants
+    const R = 220;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Presets: [r, d]
+    const presets = [
+        { r: 55, d: 80 },
+        { r: 44, d: 110 },
+        { r: 88, d: 50 }
+    ];
+
+    let currentPresetIdx = 0;
+    let r = presets[currentPresetIdx].r;
+    let d = presets[currentPresetIdx].d;
+    
+    let theta = 0;
+    let maxTheta = 0;
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // GCD to find the period of the hypotrochoid
+    function gcd(a, b) {
+        return b === 0 ? a : gcd(b, a % b);
+    }
+
+    function initDrawing() {
+        const preset = presets[currentPresetIdx];
+        r = preset.r;
+        d = preset.d;
+
+        // The curve closes when theta is a multiple of 2*PI and (R-r)/r * theta is also a multiple of 2*PI.
+        // Let (R-r)/r = p/q in irreducible form. Then the period is 2*PI * q.
+        const num = R - r;
+        const den = r;
+        const common = gcd(num, den);
+        const q = den / common;
+        maxTheta = 2 * Math.PI * q;
+
+        theta = 0;
+        isDrawing = true;
+
+        // Clear canvas and set initial point
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const startPos = calculatePosition(0);
+        lastX = startPos.x;
+        lastY = startPos.y;
+
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+    }
+
+    function calculatePosition(t) {
+        // Hypotrochoid parametric equations:
+        // x = (R-r)cos(t) + d*cos((R-r)/r * t)
+        // y = (R-r)sin(t) - d*sin((R-r)/r * t)
+        const x = (R - r) * Math.cos(t) + d * Math.cos(((R - r) / r) * t);
+        const y = (R - r) * Math.sin(t) - d * Math.sin(((R - r) / r) * t);
+        return { x: centerX + x, y: centerY + y };
+    }
+
+    function animate() {
+        if (isDrawing) {
+            // Draw a few segments per frame for smooth but progressive animation
+            const step = 0.05;
+            for (let i = 0; i < 5; i++) {
+                if (theta >= maxTheta) {
+                    isDrawing = false;
+                    break;
+                }
+
+                theta += step;
+                const pos = calculatePosition(theta);
+
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+
+                lastX = pos.x;
+                lastY = pos.y;
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+
+    // UI Event Listeners
+    uiToggle.addEventListener('click', () => {
+        uiControls.classList.toggle('open');
+    });
+
+    presetSelect.addEventListener('change', (e) => {
+        currentPresetIdx = parseInt(e.target.value);
+        initDrawing();
+    });
+
+    // Start
+    initDrawing();
+    animate();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Spirograph - Hypotroid</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        canvas {
+            background: #111;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            color: white;
+        }
+        #toggle-btn {
+            background: #333;
+            color: #eee;
+            border: 1px solid #555;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #toggle-btn:hover {
+            background: #444;
+        }
+        #ui-panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            margin-top: 5px;
+            display: none;
+            border: 1px solid #444;
+        }
+        #preset-selector {
+            background: #222;
+            color: white;
+            border: 1px solid #555;
+            padding: 5px;
+            width: 120px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<div id="ui-container">
+    <button id="toggle-btn">Menu</button>
+    <div id="ui-panel">
+        <select id="preset-selector">
+            <option value="0">Pattern 1</option>
+            <option value="1">Pattern 2</option>
+            <option value="2">Pattern 3</option>
+        </select>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const uiPanel = document.getElementById('ui-panel');
+    const presetSelector = document.getElementById('preset-selector');
+
+    // Constants
+    const R = 220;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // State
+    const presets = [
+        { r: 55, d: 80 },
+        { r: 44, d: 110 },
+        { r: 88, d: 50 }
+    ];
+    let currentPresetIndex = 0;
+    let r = presets[0].r;
+    let d = presets[0].d;
+    let theta = 0;
+    let maxTheta = 0;
+    let isDrawing = false;
+    const step = 0.02;
+
+    // UI Logic
+    toggleBtn.addEventListener('click', () => {
+        uiPanel.style.display = (uiPanel.style.display === 'block') ? 'none' : 'block';
+    });
+
+    presetSelector.addEventListener('change', (e) => {
+        currentPresetIndex = parseInt(e.target.value);
+        startNewDrawing();
+    });
+
+    // Math Logic
+    function getPoint(t) {
+        const k = (R - r) / r;
+        const x = (R - r) * Math.cos(t) + d * Math.cos(k * t);
+        const y = (R - r) * Math.sin(t) - d * Math.sin(k * t);
+        return { x: x + centerX, y: y + centerY };
+    }
+
+    function calculateMaxTheta() {
+        const k = (R - r) / r;
+        // Find smallest m such that k*m is an integer to ensure closure
+        let m = 1;
+        while (Math.abs(k * m - Math.round(k * m)) > 1e-7) {
+            m++;
+        }
+        return 2 * Math.PI * m;
+    }
+
+    function startNewDrawing() {
+        const p = presets[currentPresetIndex];
+        r = p.r;
+        d = p.d;
+        maxTheta = calculateMaxTheta();
+        theta = 0;
+        isDrawing = true;
+
+        // Clear canvas
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function animate() {
+        if (isDrawing) {
+            const p1 = getPoint(theta);
+            const nextTheta = Math.min(theta + step, maxTheta);
+            const p2 = getPoint(nextTheta);
+
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#fff';
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+
+            theta = nextTheta;
+            if (theta >= maxTheta) {
+                isDrawing = false;
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+
+    // Initialization
+    startNewDrawing();
+    animate();
+
+</script>
+</body>
+</html>

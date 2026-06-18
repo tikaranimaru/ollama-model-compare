@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Verlet Cloth Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            background-color: #111;
+            border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            font-family: sans-serif;
+            user-select: none;
+            border: 1px solid #444;
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        input[type=range] {
+            width: 150px;
+        }
+        button {
+            padding: 5px 10px;
+            cursor: pointer;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="clothCanvas" width="900" height="600"></canvas>
+
+<div id="ui-container">
+    <button id="toggleBtn">Toggle UI</button>
+    <div id="controls">
+        <div class="control-group">
+            <label for="windSlider">Wind Strength</label>
+            <input type="range" id="windSlider" min="0" max="10" step="0.1" value="2">
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * Cloth Simulation using Verlet Integration
+ * Logic:
+ * 1. Update positions based on velocity (current - previous) + acceleration.
+ * 2. Solve distance constraints iteratively.
+ * 3. Draw links as lines.
+ */
+
+const canvas = document.getElementById('clothCanvas');
+const ctx = canvas.getContext('2d');
+const windSlider = document.getElementById('windSlider');
+const toggleBtn = document.getElementById('toggleBtn');
+const controls = document.getElementById('controls');
+const uiContainer = document.getElementById('ui-container');
+
+// Simulation Parameters
+const rows = 20;
+const cols = 30;
+const spacing = 25;
+const gravity = 0.4;
+const iterations = 5;
+let windStrength = parseFloat(windSlider.value);
+
+// State
+let points = [];
+let links = [];
+let mouse = { x: 0, y: 0, down: false, targetPoint: null };
+
+class Point {
+    constructor(x, y, isFixed = false) {
+        this.x = x;
+        this.y = y;
+        this.oldX = x;
+        this.oldY = y;
+        this.isFixed = isFixed;
+    }
+
+    update(dt, windForce) {
+        if (this.isFixed) return;
+
+        let vx = (this.x - this.oldX);
+        let vy = (this.y - this.oldY);
+
+        this.oldX = this.x;
+        this.oldY = this.y;
+
+        // Verlet Integration: pos = pos + velocity + acceleration * dt^2
+        // Wind is treated as a horizontal force component
+        this.x += vx + (windForce) * 0.01; 
+        this.y += vy + gravity;
+    }
+}
+
+class Link {
+    constructor(p1, p2) {
+        this.p1 = p1;
+        this.p2 = p2;
+        this.length = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
+
+    solve() {
+        let dx = this.p2.x - this.p1.x;
+        let dy = this.p2.y - this.p1.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        let difference = (this.length - distance) / distance;
+        let offsetX = dx * difference * 0.5;
+        let offsetY = dy * difference * 0.5;
+
+        if (!this.p1.isFixed) {
+            this.p1.x -= offsetX;
+            this.p1.y -= offsetY;
+        }
+        if (!this.p2.isFixed) {
+            this.p2.x += offsetX;
+            this.p2.y += offsetY;
+        }
+    }
+}
+
+// Initialize Grid
+function init() {
+    const startX = (canvas.width - cols * spacing) / 2 + spacing / 2;
+    const startY = 50;
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            let isFixed = (y === 0); // Fix the top row
+            points.push(new Point(startX + x * spacing, startY + y * spacing, isFixed));
+        }
+    }
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if (x < cols - 1) {
+                links.push(new Link(points[y * cols + x], points[y * cols + x + 1]));
+            }
+            if (y < rows - 1) {
+                links.push(new Link(points[y * cols + x], points[(y + 1) * cols + x]));
+            }
+        }
+    }
+}
+
+function animate() {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Wind calculation (sine wave for natural feel)
+    const windForce = Math.sin(Date.now() * 0.002) * windStrength;
+
+    // Update points
+    points.forEach(p => p.update(1, windForce));
+
+    // Solve constraints
+    for (let i = 0; i < iterations; i++) {
+        links.forEach(l => l.solve());
+    }
+
+    // Handle Dragging
+    if (mouse.down && mouse.targetPoint) {
+        mouse.targetPoint.x = mouse.x;
+        mouse.targetPoint.y = mouse.y;
+        // Reset velocity to prevent "snapping" back
+        mouse.targetPoint.oldX = mouse.targetPoint.x - (mouse.targetPoint.x - mouse.targetPoint.oldX); // This is a bit tricky in Verlet, 
+        // but setting oldX/Y to current position effectively zeroes out the velocity for the next frame's calculation.
+        // To make it feel "smooth" while dragging, we can set oldX = x - (mouse_dx)
+    }
+
+    // Draw links
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    links.forEach(l => {
+        ctx.moveTo(l.p1.x, l.p1.y);
+        ctx.lineTo(l.p2.x, l.p2.y);
+    });
+    ctx.stroke();
+
+    requestAnimationFrame(animate);
+}
+
+// Interaction Logic
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+    mouse.down = true;
+
+    let minDist = 30;
+    mouse.targetPoint = null;
+    points.forEach(p => {
+        const d = Math.sqrt(Math.pow(p.x - mouse.x, 2) + Math.pow(p.y - mouse.y, 2));
+        if (d < minDist) {
+            minDist = d;
+            mouse.targetPoint = p;
+        }
+    });
+});
+
+window.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+});
+
+window.addEventListener('mouseup', () => {
+    mouse.down = false;
+    mouse.targetPoint = null;
+});
+
+// UI Logic
+toggleBtn.addEventListener('click', () => {
+    controls.classList.toggle('hidden');
+});
+
+windSlider.addEventListener('input', (e) => {
+    windStrength = parseFloat(e.target.value);
+});
+
+// Start
+init();
+animate();
+
+</script>
+</body>
+</html>

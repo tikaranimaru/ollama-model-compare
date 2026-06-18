@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Hypotroid Spirograph</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #111;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            background-color: #111;
+            display: block;
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-family: sans-serif;
+            z-index: 10;
+        }
+        #ui-panel {
+            display: none;
+            margin-top: 5px;
+            background: rgba(50, 50, 50, 0.9);
+            padding: 10px;
+            border-radius: 4px;
+            color: white;
+        }
+        button {
+            cursor: pointer;
+            padding: 5px 10px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #666;
+        }
+        select {
+            padding: 5px;
+            background: #222;
+            color: white;
+            border: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<div id="ui-container">
+    <button onclick="toggleUI()">Menu</button>
+    <div id="ui-panel">
+        <select id="preset-selector" onchange="changePreset(this.value)">
+            <option value="0">模様1</option>
+            <option value="1">模様2</option>
+            <option value="2">模様3</option>
+        </select>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const uiPanel = document.getElementById('ui-panel');
+
+    // Constants & State
+    const R = 220;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    
+    let r, d, theta, endTheta, isDrawing;
+    let currentX, currentY;
+    let selectedIndex = 0;
+
+    const presets = [
+        { r: 55, d: 80 },
+        { r: 44, d: 110 },
+        { r: 88, d: 50 }
+    ];
+
+    function gcd(a, b) {
+        a = Math.abs(a);
+        b = Math.abs(b);
+        while (b) {
+            a %= b;
+            [a, b] = [b, a];
+        }
+        return a;
+    }
+
+    function toggleUI() {
+        uiPanel.style.display = (uiPanel.style.display === 'none' || uiPanel.style.display === '') ? 'block' : 'none';
+    }
+
+    function changePreset(index) {
+        selectedIndex = parseInt(index);
+        setup();
+    }
+
+    function setup() {
+        const preset = presets[selectedIndex];
+        r = preset.r;
+        d = preset.d;
+
+        // Calculate the angle at which the curve closes
+        // The period is determined by the denominator of (R-r)/r in reduced form
+        let A = R - r;
+        let B = r;
+        let common = gcd(A, B);
+        let b_prime = B / common;
+        endTheta = 2 * Math.PI * b_prime;
+
+        theta = 0;
+        // Initial position at theta = 0
+        currentX = cx + (R - r) * Math.cos(0) + d * Math.cos(((R - r) / r) * 0);
+        currentY = cy + (R - r) * Math.sin(0) - d * Math.sin(((R - r) / r) * 0);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        isDrawing = true;
+        requestAnimationFrame(animate);
+    }
+
+    function animate() {
+        if (!isDrawing) return;
+
+        const stepSize = 0.02;
+        const stepsPerFrame = 15;
+
+        for (let i = 0; i < stepsPerFrame; i++) {
+            const prevX = currentX;
+            const prevY = currentY;
+
+            theta += stepSize;
+
+            // Hypotroid parametric equations
+            // x = (R-r)cos(t) + d*cos((R-r)/r * t)
+            // y = (R-r)sin(t) - d*sin((R-r)/r * t)
+            const ratio = (R - r) / r;
+            currentX = cx + (R - r) * Math.cos(theta) + d * Math.cos(ratio * theta);
+            currentY = cy + (R - r) * Math.sin(theta) - d * Math.sin(ratio * theta);
+
+            ctx.beginPath();
+            ctx.moveTo(prevX, prevY);
+            ctx.lineTo(currentX, currentY);
+            ctx.stroke();
+
+            if (theta >= endTheta) {
+                isDrawing = false;
+                break;
+            }
+        }
+
+        if (isDrawing) {
+            requestAnimationFrame(animate);
+        }
+    }
+
+    // Initialize first run
+    setup();
+
+</script>
+
+</body>
+</html>
